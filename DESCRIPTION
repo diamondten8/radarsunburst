@@ -1,0 +1,30 @@
+Package: radarsunburst
+Title: Radar Profiles Surrounded by Counted Hierarchies
+Version: 0.1.0
+Authors@R: person("Development", "Maintainer", role = c("aut", "cre"),
+    email = "maintainer@example.org")
+Description: Draw composite charts combining group means of numeric metrics,
+    an independent metric-label ring, and a sunburst of counted records in a
+    hierarchy. Counts and configurable proportions are calculated from input
+    rows, including branches that terminate at different depths. Standard
+    'ggplot2' layers support themes and static export, with optional interactive
+    conversion through 'plotly'.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports:
+    ggplot2 (>= 3.5.0),
+    grDevices,
+    rlang (>= 1.1.0),
+    stats,
+    utils
+Suggests:
+    ggthemes,
+    htmlwidgets,
+    knitr,
+    plotly,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+RoxygenNote: 7.3.3
