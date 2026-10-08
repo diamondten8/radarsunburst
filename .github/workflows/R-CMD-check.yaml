@@ -68,11 +68,38 @@ jobs:
         with:
           name: release-source
           path: source-artifact
+      - name: Install current HTML Tidy on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tidy
+      - name: Install current HTML Tidy on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install tidy-html5
+          echo "$(brew --prefix tidy-html5)/bin" >> "$GITHUB_PATH"
+      - name: Install verified official HTML Tidy on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $assetUrl = 'https://github.com/htacg/tidy-html5/releases/download/5.8.0/tidy-5.8.0-win64.zip'
+          $archive = Join-Path $env:RUNNER_TEMP 'tidy.zip'
+          $checksumFile = Join-Path $env:RUNNER_TEMP 'tidy.sha256'
+          Invoke-WebRequest $assetUrl -OutFile $archive
+          Invoke-WebRequest ($assetUrl + '.sha256') -OutFile $checksumFile
+          $expected = ((Get-Content -LiteralPath $checksumFile -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) { throw 'HTML Tidy checksum mismatch' }
+          $destination = Join-Path $env:RUNNER_TEMP 'tidy-runtime'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $executable = Get-ChildItem -LiteralPath $destination -Filter tidy.exe -Recurse
+          if ($executable.Count -ne 1) { throw 'Expected one HTML Tidy executable' }
+          $executable.DirectoryName | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Provision the PDF-manual toolchain
         shell: Rscript {0}
         run: |
           tinytex::install_tinytex()
           tinytex::tlmgr_install(c("courier", "inconsolata", "makeindex"))
+          bins <- list.dirs(file.path(tinytex::tinytex_root(), "bin"), recursive = FALSE)
+          stopifnot(length(bins) > 0L)
+          write(bins, file = Sys.getenv("GITHUB_PATH"), append = TRUE)
       - name: Build and check a source tarball, including the manual
         shell: Rscript {0}
         run: |
