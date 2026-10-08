@@ -7,22 +7,22 @@
 \format{
 A data frame with 40 rows and 18 columns:
 \describe{
-  \item{id, name}{Project identifier and Chinese project label.}
-  \item{series}{Radar group, Series1 through Series4.}
-  \item{main_category, sub_category, leaf_category}{A three-level hierarchy;
-    blank child values terminate a branch.}
-  \item{region, stage, org_type}{Fictional region, stage and organisation type.}
-  \item{score_quality, score_efficiency, score_innovation,
-    score_collaboration, score_stability}{Numeric demonstration scores.}
-  \item{budget_k_cny}{Illustrative budget in thousands of Chinese yuan.}
-  \item{team_size, duration_months}{Illustrative team size and duration.}
-  \item{sample_weight}{Original prototype field, always one. Not used by this
-    package: the sunburst counts rows rather than summing weights.}
+\item{id, name}{Project identifier and Chinese project label.}
+\item{series}{Radar group, Series1 through Series4.}
+\item{main_category, sub_category, leaf_category}{A three-level hierarchy;
+blank child values terminate a branch.}
+\item{region, stage, org_type}{Fictional region, stage and organisation type.}
+\item{score_quality, score_efficiency, score_innovation,
+score_collaboration, score_stability}{Numeric demonstration scores.}
+\item{budget_k_cny}{Illustrative budget in thousands of Chinese yuan.}
+\item{team_size, duration_months}{Illustrative team size and duration.}
+\item{sample_weight}{Original prototype field, always one. Not used by this
+package: the sunburst counts rows rather than summing weights.}
 }
 }
 \source{
 Generated fictional data. The corresponding UTF-8 CSV is installed at
-  `system.file("extdata", "demo_data.csv", package = "radarsunburst")`.
+\code{system.file("extdata", "demo_data.csv", package = "radarsunburst")}.
 }
 \usage{
 radar_sunburst_demo
@@ -30,7 +30,7 @@ radar_sunburst_demo
 \description{
 Forty fictional records, generated deterministically for the original
 prototype with assistance from OpenAI Codex. They do not describe real people
-or projects. Every row is one record, irrespective of `sample_weight`.
+or projects. Every row is one record, irrespective of \code{sample_weight}.
 }
 \examples{
 data(radar_sunburst_demo)

@@ -2,7 +2,8 @@
 
 Draw numeric radar profiles inside a sunburst of counted records. The centre
 shows each group's arithmetic metric means; the outside shows how the same
-records are classified. A separate ring identifies the metric axes. The two
+records are classified. A separate ring surrounds the metric axes, with optional
+names enabled by `show_metric_labels = TRUE`. The two
 sets of categories are independent.
 
 **Development version 0.1.0. This package has not yet been published on CRAN.**
@@ -74,6 +75,8 @@ control root categories; colour scales control radar groups, including their
 translucent fill. Metric-ring colours and geometry text have separate function
 arguments. Keep the fixed coordinate ratio so circles remain circular. Font
 availability and export size affect label fit; inspect dense charts after export.
+Metric names are hidden on the ring by default and remain present in radar hover
+information; set `show_metric_labels = TRUE` to display them in static charts.
 
 ```r
 if (requireNamespace("plotly", quietly = TRUE)) {

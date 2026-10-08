@@ -11,3 +11,4 @@ example/
 artifacts/
 data/*.rda
 !data/radar_sunburst_demo.rda
+._cache_gpg.exe

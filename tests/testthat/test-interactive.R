@@ -16,6 +16,8 @@ test_that("direct conversion and the wrapper preserve data and aspect ratio", {
   expect_true(all(vapply(radar, function(t) t$legendgroup %in% c("radar:one", "radar:two"), logical(1))))
   decorations <- Filter(function(t) !length(t$text) || all(is.na(t$text) | !nzchar(t$text)), w$x$data)
   expect_true(all(vapply(decorations, function(t) identical(t$hoverinfo, "skip"), logical(1))))
+  geometry_labels <- Filter(function(t) identical(t$mode, "text"), w$x$data)
+  expect_true(all(vapply(geometry_labels, function(t) identical(t$hoverinfo, "skip"), logical(1))))
   expect_true(grepl("plotly_legendclick", w$jsHooks$render[[1L]]$code, fixed = TRUE))
 })
 

@@ -46,7 +46,7 @@ radar_sunburstly <- function(p, width = NULL, height = NULL, ...) {
     trace <- w$x$data[[i]]
     text <- as.character(trace$text)
     useful <- text[!is.na(text) & nzchar(text)]
-    if (!length(useful)) {
+    if (!length(useful) || identical(trace$mode, "text")) {
       trace$hoverinfo <- "skip"
       trace$showlegend <- FALSE
     } else if (any(startsWith(useful, "Radar group: "))) {
@@ -64,7 +64,8 @@ radar_sunburstly <- function(p, width = NULL, height = NULL, ...) {
     w$x$data[[i]] <- trace
   }
   w <- plotly::layout(w, yaxis = list(scaleanchor = "x", scaleratio = 1),
-                      legend = list(groupclick = "togglegroup"))
+                      legend = list(groupclick = "togglegroup",
+                                    title = list(text = "Categories and radar groups")))
   # Prevent category legend clicks while retaining radar toggling. No network
   # callbacks or persistent state are used; this hook runs only in the widget.
   if (!requireNamespace("htmlwidgets", quietly = TRUE)) {

@@ -16,3 +16,4 @@
 ^example$
 ^output$
 ^tmp$
+^\._cache_gpg\.exe$

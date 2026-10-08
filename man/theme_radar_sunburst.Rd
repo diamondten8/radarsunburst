@@ -13,7 +13,7 @@ theme_radar_sunburst(base_size = 11, base_family = "")
 }
 \value{
 A ggplot2 theme. Geometry labels are controlled by the label arguments
-  of [radar_sunburst()], independently of the theme.
+of \code{\link[=radar_sunburst]{radar_sunburst()}}, independently of the theme.
 }
 \description{
 A void theme with a right-hand legend, modest margins and a white background.

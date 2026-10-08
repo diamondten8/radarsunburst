@@ -29,7 +29,7 @@
 #'   `label`, `path` (a list of complete character paths), `root`, `count`,
 #'   `parent_count`, `root_count`, `total_count`, `parent_proportion`,
 #'   `root_proportion`, `global_proportion`, `start`, and `end` (radians clockwise
-#'   from the top). Proportions lie in [0, 1]. A root's parent is the entire table.
+#'   from the top). Proportions lie between zero and one. A root's parent is the entire table.
 #'   IDs encode UTF-8 path components without relying on a slash delimiter.
 #'   No files or user-session settings are changed.
 #' @export
@@ -122,8 +122,11 @@ radar_sunburst_data <- function(data, metrics, group, hierarchy,
     vapply(data[groups == g, metrics, drop = FALSE], mean, numeric(1L))
   }, numeric(length(metrics))))
   dimnames(radar) <- list(group_order, metrics)
-  nodes <- list()
-  used_orders <- character()
+  # This collector belongs only to this call; recursion never writes to a caller
+  # environment or the user's workspace.
+  collector <- new.env(parent = emptyenv())
+  collector$nodes <- list()
+  collector$used_orders <- character()
   root_counts <- vapply(root_order, function(x) sum(categories[[1L]] == x), integer(1L))
   edges <- -pi * root_counts[1L] / nrow(data) +
     2 * pi * c(0, cumsum(root_counts)) / nrow(data)
@@ -141,14 +144,14 @@ radar_sunburst_data <- function(data, metrics, group, hierarchy,
                        global_proportion = count / nrow(data), start = a, end = b,
                        stringsAsFactors = FALSE)
     node$path <- list(path)
-    nodes[[length(nodes) + 1L]] <<- node
+    collector$nodes[[length(collector$nodes) + 1L]] <- node
     if (level == length(hierarchy)) return(invisible(NULL))
     next_labels <- categories[[level + 1L]][rows]
     children <- unique(next_labels[nzchar(next_labels)])
     preferred <- branch_order[[id]]
     if (!is.null(preferred)) {
       children <- check_order(preferred, children, paste0("branch_order[['", id, "']]"))
-      used_orders <<- c(used_orders, id)
+      collector$used_orders <- c(collector$used_orders, id)
     }
     # Terminal records have a real share of the parent, but no painted child.
     cursor <- a + (b - a) * sum(!nzchar(next_labels)) / count
@@ -166,12 +169,12 @@ radar_sunburst_data <- function(data, metrics, group, hierarchy,
              NA_character_, NA_character_, nrow(data), root_counts[i],
              edges[i], edges[i + 1L])
   }
-  unknown_orders <- setdiff(names(branch_order), used_orders)
+  unknown_orders <- setdiff(names(branch_order), collector$used_orders)
   if (length(unknown_orders)) {
     stop("`branch_order` refers to unknown or terminal parent IDs: ",
          paste(unknown_orders, collapse = ", "), ".", call. = FALSE)
   }
-  nodes <- do.call(rbind, nodes)
+  nodes <- do.call(rbind, collector$nodes)
   rownames(nodes) <- NULL
   structure(list(radar = radar, nodes = nodes, radar_limits = unname(radar_limits),
                  metrics = metrics, hierarchy = hierarchy, group_order = group_order,

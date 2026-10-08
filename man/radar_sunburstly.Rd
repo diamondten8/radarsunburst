@@ -7,21 +7,21 @@
 radar_sunburstly(p, width = NULL, height = NULL, ...)
 }
 \arguments{
-\item{p}{A ggplot object produced by [radar_sunburst()], optionally modified
+\item{p}{A ggplot object produced by \code{\link[=radar_sunburst]{radar_sunburst()}}, optionally modified
 with a theme, labels or scales.}
 
 \item{width, height}{Optional widget width and height in pixels; finite positive
 numbers. When omitted, the containing page controls sizing.}
 
-\item{...}{Additional arguments passed to `plotly::ggplotly()`. The `tooltip`
+\item{...}{Additional arguments passed to \code{plotly::ggplotly()}. The \code{tooltip}
 argument is managed by this function and must not be supplied here.}
 }
 \value{
 A Plotly HTML widget. Hover shows counted paths and radar means;
-  clicking a radar-group legend toggles its line, points and fill together.
-  Category legend entries are explanatory and do not toggle isolated traces.
-  No browser is opened and no file is written. Save explicitly with
-  `htmlwidgets::saveWidget()`. Branch drill-down is not implemented.
+clicking a radar-group legend toggles its line, points and fill together.
+Category legend entries are explanatory and do not toggle isolated traces.
+No browser is opened and no file is written. Save explicitly with
+\code{htmlwidgets::saveWidget()}. Branch drill-down is not implemented.
 }
 \description{
 Configure hover information, equal-axis scaling and linked radar-group traces.

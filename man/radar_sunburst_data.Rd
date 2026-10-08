@@ -26,31 +26,31 @@ numeric and logical identifiers are accepted, with no missing or blank values.}
 
 \item{hierarchy}{Character vector of distinct column names, from root to leaf.
 Missing or blank values below the root terminate a branch. Levels cannot be
-skipped. Identifiers accept the same types as `group`.}
+skipped. Identifiers accept the same types as \code{group}.}
 
 \item{radar_limits}{Optional finite, increasing numeric vector of length two.
 It must contain all input metric values. By default, the common input range
 is expanded by 5 percent of its span at both ends. A constant value is
-expanded by `max(1, abs(value) * 0.05)` at each end.}
+expanded by \code{max(1, abs(value) * 0.05)} at each end.}
 
 \item{group_order, root_order}{Optional character vectors containing each
-observed group or root exactly once. Defaults to first appearance in `data`.}
+observed group or root exactly once. Defaults to first appearance in \code{data}.}
 
 \item{branch_order}{A named list of character vectors setting child order.
-Names are parent node IDs (see the returned `nodes$id`). Every supplied
+Names are parent node IDs (see the returned \code{nodes$id}). Every supplied
 order must contain all observed non-empty children of that parent exactly
 once. Terminated records always reserve the first, unpainted child interval.}
 }
 \value{
-A list of class `radar_sunburst_data` with `radar` (a group-by-metric
-  matrix), `nodes` (a data frame), `radar_limits`, `metrics`, `group_order`,
-  `root_order`, and `n`. Node columns are `id`, `parent_id`, `root_id`, `level`,
-  `label`, `path` (a list of complete character paths), `root`, `count`,
-  `parent_count`, `root_count`, `total_count`, `parent_proportion`,
-  `root_proportion`, `global_proportion`, `start`, and `end` (radians clockwise
-  from the top). Proportions lie in [0, 1]. A root's parent is the entire table.
-  IDs encode UTF-8 path components without relying on a slash delimiter.
-  No files or user-session settings are changed.
+A list of class \code{radar_sunburst_data} with \code{radar} (a group-by-metric
+matrix), \code{nodes} (a data frame), \code{radar_limits}, \code{metrics}, \code{group_order},
+\code{root_order}, and \code{n}. Node columns are \code{id}, \code{parent_id}, \code{root_id}, \code{level},
+\code{label}, \code{path} (a list of complete character paths), \code{root}, \code{count},
+\code{parent_count}, \code{root_count}, \code{total_count}, \code{parent_proportion},
+\code{root_proportion}, \code{global_proportion}, \code{start}, and \code{end} (radians clockwise
+from the top). Proportions lie between zero and one. A root's parent is the entire table.
+IDs encode UTF-8 path components without relying on a slash delimiter.
+No files or user-session settings are changed.
 }
 \description{
 Count records along a hierarchy and calculate arithmetic means of numeric

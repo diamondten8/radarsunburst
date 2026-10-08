@@ -7,7 +7,10 @@
 #' @inheritParams radar_sunburst_data
 #' @param percent Label denominator: `"root"` (default), `"parent"`, `"global"`,
 #'   or `"none"`. Counts are always shown. This does not change sector angles.
-#' @param metric_labels Optional character vector, one label per metric.
+#' @param metric_labels Optional character vector, one label per metric, used in
+#'   radar hover information and in the ring when `show_metric_labels` is true.
+#' @param show_metric_labels Logical scalar. Show names in the metric ring?
+#'   Defaults to false, leaving the ring unlabelled. Radar hover retains names.
 #' @param root_colors,group_colors Optional colour vectors, either unnamed in the
 #'   corresponding order or named for every root/group. Defaults use the
 #'   qualitative "Dark 3" palette. Change the fill/colour scales on the returned
@@ -33,7 +36,9 @@
 #' @param border_width Sector boundary width in millimetres.
 #' @param ticks Optional finite numeric radar ticks within `radar_limits`.
 #'   Defaults to the lower limit and pretty interior ticks. The actual lower
-#'   bound is labelled at the centre, not an implicit zero.
+#'   bound is labelled at the centre, not an implicit zero. Automatic ticks too
+#'   close together are omitted to keep the centre readable; explicit ticks are
+#'   retained.
 #' @param theme A ggplot2 theme. Defaults to [theme_radar_sunburst()]. Standard
 #'   themes can also be added afterwards with `+`.
 #'
@@ -53,7 +58,7 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
                            percent = c("root", "parent", "global", "none"),
                            radar_limits = NULL, group_order = NULL,
                            root_order = NULL, branch_order = list(),
-                           metric_labels = NULL, root_colors = NULL,
+                           metric_labels = NULL, show_metric_labels = FALSE, root_colors = NULL,
                            group_colors = NULL, metric_colors = "#E5E7EB",
                            radar_radius = 1, metric_ring = c(1.06, 1.55),
                            sunburst_radii = NULL, label_size = 4,
@@ -64,6 +69,10 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
                            border_width = 0.55, ticks = NULL,
                            theme = theme_radar_sunburst()) {
   percent <- match.arg(percent)
+  if (!is.logical(show_metric_labels) || length(show_metric_labels) != 1L ||
+      is.na(show_metric_labels)) {
+    stop("`show_metric_labels` must be TRUE or FALSE.", call. = FALSE)
+  }
   s <- radar_sunburst_data(data, metrics, group, hierarchy, radar_limits,
                           group_order, root_order, branch_order)
   positive_scalar(radar_radius, "radar_radius")
@@ -112,6 +121,15 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   if (is.null(ticks)) {
     ticks <- pretty(lim, n = 5L)
     ticks <- sort(unique(c(lim[1L], ticks[ticks > lim[1L] & ticks <= lim[2L]])))
+    # Match the conservative 180 mm panel estimate used by sector labels.
+    # Preserve the lower bound even when a nearby pretty tick is zero.
+    minimum_gap <- 2.5 * 1.3 * 2 * max(sunburst_radii) / 180
+    chosen <- ticks[1L]
+    for (tick in ticks[-1L]) {
+      distance <- radar_radius * (tick - utils::tail(chosen, 1L)) / diff(lim)
+      if (distance >= minimum_gap) chosen <- c(chosen, tick)
+    }
+    ticks <- chosen
   }
   if (!is.numeric(ticks) || !length(ticks) || any(!is.finite(ticks)) ||
       any(ticks < lim[1L] | ticks > lim[2L]) || anyDuplicated(ticks)) {
@@ -160,7 +178,7 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   }
   metric_text <- sector_text_data(metric_nodes, metric_ring, metric_label_size,
                                    min_label_size, 0, max(sunburst_radii))
-  if (nrow(metric_text)) {
+  if (isTRUE(show_metric_labels) && nrow(metric_text)) {
     p <- p + ggplot2::geom_text(data = metric_text,
       mapping = ggplot2::aes(label = .data$label, size = .data$size),
       colour = metric_label_colour, family = label_family, fontface = "bold",

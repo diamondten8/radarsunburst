@@ -50,9 +50,18 @@ test_that("labels, lower bound and summaries preserve their contracts", {
   demo <- radar_sunburst(d, c("score_stability", "score_efficiency", "score_innovation",
     "score_quality", "score_collaboration"), "series",
     c("main_category", "sub_category", "leaf_category"),
-    metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration"))
+    metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration"),
+    show_metric_labels = TRUE)
   labels <- unlist(lapply(demo$layers, function(l) l$data$label))
   expect_true(all(c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration") %in% labels))
+  unlabelled <- radar_sunburst(d, c("score_stability", "score_efficiency", "score_innovation",
+    "score_quality", "score_collaboration"), "series",
+    c("main_category", "sub_category", "leaf_category"),
+    metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration"))
+  labels <- unlist(lapply(unlabelled$layers, function(l) l$data$label))
+  expect_false(any(c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration") %in% labels))
+  expect_true(any(grepl("Metric: Stability", unlist(lapply(unlabelled$layers,
+    function(l) l$data$tooltip)), fixed = TRUE)))
 })
 
 test_that("plot validation is actionable", {
@@ -63,10 +72,22 @@ test_that("plot validation is actionable", {
   expect_error(plot_small(root_colors = "red"), "one colour")
   expect_error(plot_small(root_colors = c("invalid", "red")), "invalid colour")
   expect_error(plot_small(metric_labels = "a"), "one non-empty")
+  expect_error(plot_small(show_metric_labels = NA), "TRUE or FALSE")
   expect_error(plot_small(fill_alpha = 2), "between 0 and 1")
   expect_error(plot_small(ticks = c(-100, 100)), "within")
   expect_error(plot_small(label_angle = 100), "between -90 and 90")
   expect_error(plot_small(theme = list()), "ggplot2 theme")
+})
+
+test_that("automatic ticks leave room for the real lower bound", {
+  d <- small_data(); d$a <- 1:5; d$b <- c(2:5, 100); d$c <- 3:7
+  p <- plot_small(d)
+  tick_layer <- function(p) Filter(function(l) identical(l$aes_params$hjust, 0), p$layers)[[1L]]$data
+  automatic <- tick_layer(p)
+  expect_true(any(grepl("-3.95", automatic$label, fixed = TRUE)))
+  expect_false(any(as.numeric(automatic$label) == 0))
+  explicit <- tick_layer(plot_small(d, ticks = c(0, 20, 40, 60, 80, 100)))
+  expect_true(any(as.numeric(explicit$label) == 0))
 })
 
 test_that("runtime code does not mutate the user session or write files", {

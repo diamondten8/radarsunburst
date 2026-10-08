@@ -15,6 +15,7 @@ radar_sunburst(
   root_order = NULL,
   branch_order = list(),
   metric_labels = NULL,
+  show_metric_labels = FALSE,
   root_colors = NULL,
   group_colors = NULL,
   metric_colors = "#E5E7EB",
@@ -47,25 +48,29 @@ numeric and logical identifiers are accepted, with no missing or blank values.}
 
 \item{hierarchy}{Character vector of distinct column names, from root to leaf.
 Missing or blank values below the root terminate a branch. Levels cannot be
-skipped. Identifiers accept the same types as `group`.}
+skipped. Identifiers accept the same types as \code{group}.}
 
-\item{percent}{Label denominator: `"root"` (default), `"parent"`, `"global"`,
-or `"none"`. Counts are always shown. This does not change sector angles.}
+\item{percent}{Label denominator: \code{"root"} (default), \code{"parent"}, \code{"global"},
+or \code{"none"}. Counts are always shown. This does not change sector angles.}
 
 \item{radar_limits}{Optional finite, increasing numeric vector of length two.
 It must contain all input metric values. By default, the common input range
 is expanded by 5 percent of its span at both ends. A constant value is
-expanded by `max(1, abs(value) * 0.05)` at each end.}
+expanded by \code{max(1, abs(value) * 0.05)} at each end.}
 
 \item{group_order, root_order}{Optional character vectors containing each
-observed group or root exactly once. Defaults to first appearance in `data`.}
+observed group or root exactly once. Defaults to first appearance in \code{data}.}
 
 \item{branch_order}{A named list of character vectors setting child order.
-Names are parent node IDs (see the returned `nodes$id`). Every supplied
+Names are parent node IDs (see the returned \code{nodes$id}). Every supplied
 order must contain all observed non-empty children of that parent exactly
 once. Terminated records always reserve the first, unpainted child interval.}
 
-\item{metric_labels}{Optional character vector, one label per metric.}
+\item{metric_labels}{Optional character vector, one label per metric, used in
+radar hover information and in the ring when \code{show_metric_labels} is true.}
+
+\item{show_metric_labels}{Logical scalar. Show names in the metric ring?
+Defaults to false, leaving the ring unlabelled. Radar hover retains names.}
 
 \item{root_colors, group_colors}{Optional colour vectors, either unnamed in the
 corresponding order or named for every root/group. Defaults use the
@@ -80,10 +85,10 @@ the root fill scale. Defaults to light grey. Supply one or one per metric.}
 \item{metric_ring}{Increasing length-two numeric vector outside the radar.}
 
 \item{sunburst_radii}{Increasing vector with one more entry than hierarchy
-levels, outside `metric_ring`. Defaults to equally thick rings of width 0.55.}
+levels, outside \code{metric_ring}. Defaults to equally thick rings of width 0.55.}
 
 \item{label_size, metric_label_size}{Text sizes in millimetres for hierarchy and
-metric labels. Long labels are reduced to fit, then hidden below `min_label_size`.}
+metric labels. Long labels are reduced to fit, then hidden below \code{min_label_size}.}
 
 \item{min_label_size}{Minimum readable label size in millimetres.}
 
@@ -103,19 +108,21 @@ not these geometry labels. Fonts must exist on the rendering machine.}
 
 \item{border_width}{Sector boundary width in millimetres.}
 
-\item{ticks}{Optional finite numeric radar ticks within `radar_limits`.
+\item{ticks}{Optional finite numeric radar ticks within \code{radar_limits}.
 Defaults to the lower limit and pretty interior ticks. The actual lower
-bound is labelled at the centre, not an implicit zero.}
+bound is labelled at the centre, not an implicit zero. Automatic ticks too
+close together are omitted to keep the centre readable; explicit ticks are
+retained.}
 
-\item{theme}{A ggplot2 theme. Defaults to [theme_radar_sunburst()]. Standard
-themes can also be added afterwards with `+`.}
+\item{theme}{A ggplot2 theme. Defaults to \code{\link[=theme_radar_sunburst]{theme_radar_sunburst()}}. Standard
+themes can also be added afterwards with \code{+}.}
 }
 \value{
-A standard ggplot object, with a `radar_sunburst_summary` attribute
-  containing the result of [radar_sunburst_data()]. Creating the plot does not
-  open a device or write files. Use `ggplot2::ggsave()` for static export,
-  [radar_sunburstly()] for configured interaction, or
-  `plotly::ggplotly(p, tooltip = "text")` for direct conversion.
+A standard ggplot object, with a \code{radar_sunburst_summary} attribute
+containing the result of \code{\link[=radar_sunburst_data]{radar_sunburst_data()}}. Creating the plot does not
+open a device or write files. Use \code{ggplot2::ggsave()} for static export,
+\code{\link[=radar_sunburstly]{radar_sunburstly()}} for configured interaction, or
+\code{plotly::ggplotly(p, tooltip = "text")} for direct conversion.
 }
 \description{
 The radar summarises numeric cells by group; the sunburst independently counts
