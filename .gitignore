@@ -1,0 +1,13 @@
+output/
+tmp/
+example/
+*.html
+*.zip
+*.tar.gz
+*.Rcheck/
+.Rhistory
+.RData
+.Rproj.user/
+artifacts/
+data/*.rda
+!data/radar_sunburst_demo.rda

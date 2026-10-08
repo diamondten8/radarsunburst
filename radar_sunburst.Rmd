@@ -1,0 +1,450 @@
+---
+title: "内部雷达图与外圈旭日图"
+subtitle: "基础 R 绘图 · 同一份 CSV · 可修改参数"
+output:
+  html_document:
+    self_contained: true
+    code_folding: hide
+    toc: true
+    toc_depth: 2
+    theme: readable
+params:
+  input_csv: "demo_data.csv"
+  output_dir: "output"
+---
+
+这份示例使用 **40 条虚构项目记录、18 列数据**。中心是四组项目在五个指标上的均值，雷达图外沿的五个等宽色块标注指标名称。更外侧按“母类别 → 子类别 → 叶类别”绘制旭日图，保留不同深度的分支，整体布局参考 `example/radar-sunburst-v4.png`。
+
+**依赖：** 绘图与 CSV 读取只用 R 自带的 `graphics`、`grDevices`、`utils` 和 `stats`，不需要安装绘图包。生成本文 HTML 需要 `rmarkdown`、`knitr` 和 Pandoc，RStudio 通常自带 Pandoc。文件不会自动安装软件。
+
+## 1. 数据含义
+
+一行代表一个项目，所有数据都是演示用模拟值。
+
+|字段|含义|类型|
+|:--|:--|:--|
+|`id`、`name`|唯一项目 ID、中文名称|标识、文本|
+|`series`|Series1–Series4，决定中心的四条线|定性|
+|`main_category`|五个母类别：B 基础、C 客户、D 研发、E 执行、F 探索|定性|
+|`sub_category`、`leaf_category`|母类别下的两级分类；空白表示分支到此结束|定性|
+|`region`、`stage`、`org_type`|地区、项目阶段、机构类型|定性|
+|`score_quality`|质量评分|定量，0–100|
+|`score_efficiency`|效率评分|定量，0–100|
+|`score_innovation`|创新评分|定量，0–100|
+|`score_collaboration`|协作评分|定量，0–100|
+|`score_stability`|稳定性评分|定量，0–100|
+|`budget_k_cny`|预算，单位：千元|定量|
+|`team_size`、`duration_months`|团队人数、项目周期（月）|定量|
+|`sample_weight`|旭日图计数权重，本例每行均为 1|定量|
+
+中心线按 `series` 分组，计算五个评分的**普通算术均值**。旭日图按三列分类字段汇总 `sample_weight`，默认表示项目数。两部分使用同一份数据，分别回答“每组的指标表现如何”和“项目类别如何分层”。指标名称和类别名称是两套不同的标签。
+
+为了保持英文图形与 example 的视觉风格一致，图内采用英文指标名与简短分类代码；中文字段说明保留在本文。
+
+## 2. 读取数据与样式参数
+
+改图时优先调整 `cfg`，不需要改后面的几何计算。五个雷达指标始终占据五个**等宽**色块；旭日图的扇区宽度默认与权重成比例。本例每个母类别恰好 8 条记录，因此母类别也等宽。
+
+```{r setup, include=FALSE}
+if (!exists("params")) {
+  params <- list(input_csv = "demo_data.csv", output_dir = "output")
+}
+if (requireNamespace("knitr", quietly = TRUE)) {
+  knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                       fig.align = "center", out.width = "100%")
+}
+```
+
+```{r configuration}
+cfg <- list(
+  hierarchy = c("main_category", "sub_category", "leaf_category"),
+  weight_column = "sample_weight",
+  # 顺时针从顶部开始，与 example 的 F、C、D、B、E 位置相同。
+  main_order = c("F", "C", "D", "B", "E"),
+  # 按完整父路径指定局部顺序，复现 example 的不对称分支位置。
+  branch_order = list(F = c("F2", "F1"), E = c("E2", "E1"),
+                      "E/E1" = c("E1-2", "E1-1")),
+  metrics = c("score_stability", "score_efficiency", "score_innovation",
+              "score_quality", "score_collaboration"),
+  metric_labels = c("Stability", "Efficiency", "Innovation",
+                    "Quality", "Collaboration"),
+  series_order = c("Series1", "Series2", "Series3", "Series4"),
+  main_colors = c(B = "#FF954F", C = "#F45668", D = "#DE578A",
+                  E = "#AE4D7C", F = "#725993"),
+  line_colors = c("#8E176C", "#1485C8", "#00A58E", "#C78800"),
+  # mother：占所属母类别的比例（示例口径）；global：占全部项目的比例。
+  percent_scope = "mother",
+  # weight：标准旭日图按权重分配角度；equal：只强制母类别等宽。
+  main_sector_mode = "weight",
+  radar_radius = 0.98,
+  metric_ring = c(1.02, 1.23),
+  sunburst_radii = c(1.29, 1.91, 2.63, 3.26),
+  grid_ticks = seq(20, 100, 20),
+  line_width = 1.85,
+  point_cex = 1.40,
+  fill_alpha = 0.035,
+  border_width = 2.2,
+  parent_cex = 1.36,
+  child_cex = 1.24,
+  leaf_cex = 1.12,
+  metric_cex = 0.72,
+  legend_cex = 1.60,
+  gradient = TRUE,
+  width_inches = 12,
+  height_inches = 8,
+  dpi = 300
+)
+
+# 先按 UTF-8 读文本并去掉 Excel 友好的 BOM，不依赖系统当前 locale。
+csv_text <- readLines(params$input_csv, encoding = "UTF-8", warn = FALSE)
+if (!length(csv_text)) stop("CSV 文件为空。")
+csv_text[1] <- sub("^\xef\xbb\xbf", "", csv_text[1], useBytes = TRUE)
+dat <- utils::read.csv(
+  text = csv_text, encoding = "UTF-8", check.names = FALSE,
+  stringsAsFactors = FALSE, na.strings = "NA",
+  colClasses = c(id = "character", name = "character", series = "character",
+                main_category = "character", sub_category = "character",
+                leaf_category = "character")
+)
+
+# 数据错误直接报出来，不把缺失值偷偷补成零。
+required <- c("id", "name", "series", cfg$hierarchy,
+              cfg$metrics, cfg$weight_column)
+if (anyDuplicated(names(dat))) stop("CSV 中存在重复列名。")
+if (!all(required %in% names(dat))) {
+  stop("CSV 缺少列：", paste(setdiff(required, names(dat)), collapse = ", "))
+}
+if (!nrow(dat)) stop("CSV 没有数据行。")
+if (anyNA(dat$id) || any(!nzchar(trimws(dat$id))) || anyDuplicated(dat$id)) {
+  stop("id 必须非空且唯一。")
+}
+if (anyNA(dat$name) || any(!nzchar(trimws(dat$name)))) stop("名称不能为空。")
+for (field in cfg$hierarchy) {
+  dat[[field]][is.na(dat[[field]])] <- ""
+  dat[[field]] <- trimws(dat[[field]])
+}
+if (any(!nzchar(dat[[cfg$hierarchy[1]]]))) stop("母类别不能为空。")
+for (level in seq_len(length(cfg$hierarchy) - 1L)) {
+  if (any(!nzchar(dat[[cfg$hierarchy[level]]]) &
+          nzchar(dat[[cfg$hierarchy[level + 1L]]]))) {
+    stop("层级不能跳级：父类别为空时，其下一层也必须为空。")
+  }
+}
+if (!setequal(unique(dat[[cfg$hierarchy[1]]]), cfg$main_order)) {
+  stop("CSV 母类别与 cfg$main_order 不一致，请同步修改配置和颜色。")
+}
+if (anyNA(dat$series) || !setequal(unique(dat$series), cfg$series_order)) {
+  stop("CSV 组别与 cfg$series_order 不一致。")
+}
+if (!all(vapply(dat[cfg$metrics], is.numeric, logical(1)))) {
+  stop("雷达指标必须是数值列。")
+}
+scores <- as.matrix(dat[cfg$metrics])
+if (any(!is.finite(scores)) || any(scores < 0 | scores > 100)) {
+  stop("本例雷达指标必须为完整的 0–100 评分。不同量纲应先明确标准化规则。")
+}
+w <- dat[[cfg$weight_column]]
+if (!is.numeric(w) || any(!is.finite(w)) || any(w <= 0)) {
+  stop("旭日图权重必须为有限的正数。")
+}
+stopifnot(length(cfg$metrics) >= 3L,
+          length(cfg$metrics) == length(cfg$metric_labels),
+          length(cfg$sunburst_radii) == length(cfg$hierarchy) + 1L,
+          all(diff(cfg$sunburst_radii) > 0),
+          cfg$radar_radius < cfg$metric_ring[1],
+          cfg$metric_ring[1] < cfg$metric_ring[2],
+          cfg$metric_ring[2] < cfg$sunburst_radii[1],
+          all(cfg$main_order %in% names(cfg$main_colors)),
+          cfg$percent_scope %in% c("mother", "global"),
+          cfg$main_sector_mode %in% c("weight", "equal"))
+```
+
+## 3. 同一张表生成雷达均值与旭日层级
+
+旭日图的空白外层是有意保留的：例如 B 没有子类别，E2 没有叶类别，不会为了凑齐圆环而复制标签。每个父节点的权重由其项目记录汇总，子节点的角度在父节点的角度范围内继续分配。
+
+```{r summaries}
+radar_values <- t(vapply(cfg$series_order, function(group) {
+  colMeans(dat[dat$series == group, cfg$metrics, drop = FALSE])
+}, numeric(length(cfg$metrics))))
+dimnames(radar_values) <- list(cfg$series_order, cfg$metric_labels)
+
+build_sunburst <- function(dat, cfg) {
+  nodes <- list()
+  weights <- dat[[cfg$weight_column]]
+  total_weight <- sum(weights)
+  main_field <- cfg$hierarchy[1]
+  main_weights <- vapply(cfg$main_order, function(x) {
+    sum(weights[dat[[main_field]] == x])
+  }, numeric(1))
+  angular_weights <- if (cfg$main_sector_mode == "equal") {
+    rep(1, length(main_weights))
+  } else main_weights
+  # F 的扇区中线位于正上方，与示例一致。
+  start_angle <- -pi * angular_weights[1] / sum(angular_weights)
+  edges <- start_angle + 2 * pi * c(0, cumsum(angular_weights)) /
+    sum(angular_weights)
+
+  add_node <- function(rows, level, label, a, b, mother, mother_weight, path) {
+    value <- sum(weights[rows])
+    denominator <- if (cfg$percent_scope == "mother") mother_weight else total_weight
+    nodes[[length(nodes) + 1L]] <<- data.frame(
+      level = level, label = label, mother = mother, weight = value,
+      percent = 100 * value / denominator, start = a, end = b,
+      stringsAsFactors = FALSE
+    )
+    if (level == length(cfg$hierarchy)) return(invisible(NULL))
+    next_labels <- dat[[cfg$hierarchy[level + 1L]]][rows]
+    # 空标签也是该父节点的一部分，但不画外层扇区。
+    labels <- sort(unique(next_labels))
+    preferred <- cfg$branch_order[[path]]
+    labels <- c(intersect(preferred, labels), setdiff(labels, preferred))
+    cursor <- a
+    for (child in labels) {
+      child_rows <- rows[next_labels == child]
+      child_end <- cursor + (b - a) * sum(weights[child_rows]) / value
+      if (nzchar(child)) {
+        add_node(child_rows, level + 1L, child, cursor, child_end,
+                 mother, mother_weight, paste(path, child, sep = "/"))
+      }
+      cursor <- child_end
+    }
+    invisible(NULL)
+  }
+  for (i in seq_along(cfg$main_order)) {
+    mother <- cfg$main_order[i]
+    rows <- which(dat[[main_field]] == mother)
+    add_node(rows, 1L, mother, edges[i], edges[i + 1L], mother, main_weights[i], mother)
+  }
+  do.call(rbind, nodes)
+}
+sunburst_nodes <- build_sunburst(dat, cfg)
+```
+
+## 4. 用基础 R 画同心复合图
+
+每个扇区都用两段圆弧拼成多边形。雷达图、指标色环和旭日图使用同一个圆心、同一套坐标，避免两个独立图层拼接时出现偏心或比例失真。旭日标签水平排布，指标标签沿色环转向，右侧图例区分“分类色块”和“项目组折线”。
+
+```{r plotting_functions}
+blend_white <- function(color, amount) {
+  rgb <- grDevices::col2rgb(color) / 255
+  grDevices::rgb(rgb[1] * (1 - amount) + amount,
+                 rgb[2] * (1 - amount) + amount,
+                 rgb[3] * (1 - amount) + amount)
+}
+
+sector_polygon <- function(a, b, r0, r1, color, border = NA, lwd = 1) {
+  theta <- seq(a, b, length.out = max(24L, ceiling((b - a) * 80)))
+  graphics::polygon(
+    x = c(r1 * sin(theta), r0 * sin(rev(theta))),
+    y = c(r1 * cos(theta), r0 * cos(rev(theta))),
+    col = color, border = border, lwd = lwd
+  )
+}
+
+draw_sector <- function(a, b, r0, r1, color) {
+  if (cfg$gradient) {
+    bands <- seq(r0, r1, length.out = 19)
+    for (i in seq_len(length(bands) - 1L)) {
+      sector_polygon(a, b, bands[i], bands[i + 1L],
+                     blend_white(color, 0.025 + 0.075 * i / 18))
+    }
+  } else sector_polygon(a, b, r0, r1, color)
+  sector_polygon(a, b, r0, r1, NA, border = "white", lwd = cfg$border_width)
+}
+
+sector_label <- function(a, b, r0, r1, label, cex) {
+  theta <- (a + b) / 2
+  r <- (r0 + r1) / 2
+  # 标签较长时减小字号，让文字留在扇区里。
+  available_width <- 2 * r * sin(min((b - a) / 2, pi / 2)) * 0.82
+  available_height <- (r1 - r0) * 0.84
+  width <- max(graphics::strwidth(strsplit(label, "\n", fixed = TRUE)[[1]],
+                                 cex = cex, font = 2))
+  height <- graphics::strheight(label, cex = cex, font = 2)
+  fitted <- cex * min(1, available_width / width, available_height / height)
+  cx <- r * sin(theta)
+  cy <- r * cos(theta)
+  # 水平文字在斜向扇区里也要检查径向边界，避免百分比压到白线。
+  fits <- function(size) {
+    half_width <- width * size / cex / 2
+    half_height <- height * size / cex / 2
+    corners <- expand.grid(x = cx + c(-half_width, half_width),
+                           y = cy + c(-half_height, half_height))
+    nearest <- sqrt(max(abs(cx) - half_width, 0)^2 +
+                    max(abs(cy) - half_height, 0)^2)
+    farthest <- max(sqrt(corners$x^2 + corners$y^2))
+    offsets <- (atan2(corners$x, corners$y) - theta + pi) %% (2 * pi) - pi
+    nearest >= r0 + 0.035 && farthest <= r1 - 0.035 &&
+      all(abs(offsets) <= (b - a) / 2 - 0.015)
+  }
+  while (!fits(fitted) && fitted > 0.20) fitted <- fitted * 0.97
+  graphics::text(cx, cy, label,
+                 cex = fitted, col = "white", font = 2)
+}
+
+draw_radar_sunburst <- function() {
+  old_par <- graphics::par(no.readonly = TRUE)
+  on.exit(graphics::par(old_par), add = TRUE)
+  graphics::par(mar = c(0.4, 0.4, 0.4, 0.4), family = "sans",
+                xaxs = "i", yaxs = "i", xpd = FALSE)
+  graphics::plot.new()
+  graphics::plot.window(xlim = c(-4.25, 6.10), ylim = c(-3.45, 3.45), asp = 1)
+
+  # 1. 外圈旭日图，分支结束后保持白色背景。
+  for (i in seq_len(nrow(sunburst_nodes))) {
+    node <- sunburst_nodes[i, ]
+    radii <- cfg$sunburst_radii[c(node$level, node$level + 1L)]
+    color <- blend_white(cfg$main_colors[node$mother],
+                         c(0, 0.035, 0.21)[node$level])
+    draw_sector(node$start, node$end, radii[1], radii[2], color)
+  }
+  for (i in seq_len(nrow(sunburst_nodes))) {
+    node <- sunburst_nodes[i, ]
+    radii <- cfg$sunburst_radii[c(node$level, node$level + 1L)]
+    pct <- if (abs(node$percent - round(node$percent)) < 1e-8) {
+      sprintf("%.0f%%", node$percent)
+    } else sprintf("%.1f%%", node$percent)
+    sector_label(node$start, node$end, radii[1], radii[2],
+                 paste(node$label, pct, sep = "\n"),
+                 c(cfg$parent_cex, cfg$child_cex, cfg$leaf_cex)[node$level])
+  }
+
+  # 2. 雷达最外沿：每个指标一个等宽色块，轴线穿过色块中点。
+  n_metrics <- length(cfg$metrics)
+  angles <- 2 * pi * (seq_len(n_metrics) - 1L) / n_metrics
+  ring_colors <- rep_len(unname(cfg$main_colors[cfg$main_order]), n_metrics)
+  for (i in seq_len(n_metrics)) {
+    a <- angles[i] - pi / n_metrics
+    b <- angles[i] + pi / n_metrics
+    sector_polygon(a, b, cfg$metric_ring[1], cfg$metric_ring[2],
+                   blend_white(ring_colors[i], 0.65), "white", 1.8)
+    rotation <- -angles[i] * 180 / pi
+    rotation <- (rotation + 180) %% 360 - 180
+    if (rotation < -90) rotation <- rotation + 180
+    if (rotation > 90) rotation <- rotation - 180
+    r <- mean(cfg$metric_ring)
+    graphics::text(r * sin(angles[i]), r * cos(angles[i]),
+                   cfg$metric_labels[i], srt = rotation,
+                   cex = cfg$metric_cex, font = 2, col = "#283142")
+  }
+
+  # 3. 0–100 雷达网格，首尾闭合。
+  closed <- c(seq_len(n_metrics), 1L)
+  for (tick in cfg$grid_ticks) {
+    r <- cfg$radar_radius * tick / 100
+    graphics::polygon(r * sin(angles[closed]), r * cos(angles[closed]),
+                      border = "#B6B7BC", col = NA, lwd = 0.65)
+  }
+  graphics::segments(0, 0, cfg$radar_radius * sin(angles),
+                     cfg$radar_radius * cos(angles), col = "#CDCDD1", lwd = 0.65)
+  series_colors <- rep_len(cfg$line_colors, nrow(radar_values))
+  for (s in seq_len(nrow(radar_values))) {
+    r <- cfg$radar_radius * radar_values[s, ] / 100
+    graphics::polygon(r[closed] * sin(angles[closed]),
+                      r[closed] * cos(angles[closed]),
+                      col = grDevices::adjustcolor(series_colors[s], cfg$fill_alpha),
+                      border = NA)
+  }
+  for (s in seq_len(nrow(radar_values))) {
+    r <- cfg$radar_radius * radar_values[s, ] / 100
+    graphics::lines(r[closed] * sin(angles[closed]),
+                    r[closed] * cos(angles[closed]),
+                    col = series_colors[s], lwd = cfg$line_width)
+    graphics::points(r * sin(angles), r * cos(angles),
+                     pch = 16, cex = cfg$point_cex, col = series_colors[s])
+  }
+  # 刻度略向右错开，不压住顶部的节点。
+  graphics::text(0.047, cfg$radar_radius * cfg$grid_ticks / 100,
+                 labels = cfg$grid_ticks, adj = c(0, 0.5),
+                 cex = 0.64, col = "#252A30")
+  graphics::text(0.047, 0, "0", adj = c(0, 0.5), cex = 0.58, col = "#777777")
+
+  # 4. 右侧图例，与示例的排列方式一致。
+  legend_order <- sort(cfg$main_order)
+  ys <- seq(1.39, by = -0.40, length.out = length(legend_order))
+  for (i in seq_along(legend_order)) {
+    graphics::rect(4.03, ys[i] - 0.13, 4.63, ys[i] + 0.13,
+                   col = blend_white(cfg$main_colors[legend_order[i]], 0.065), border = NA)
+    graphics::text(4.79, ys[i], legend_order[i], adj = 0,
+                   cex = cfg$legend_cex, font = 2, col = "#273142")
+  }
+  ys <- seq(min(ys) - 0.48, by = -0.40, length.out = nrow(radar_values))
+  for (s in seq_len(nrow(radar_values))) {
+    graphics::segments(4.03, ys[s], 4.63, ys[s], col = series_colors[s], lwd = 2.0)
+    graphics::points(4.33, ys[s], pch = 16, cex = 2.50, col = series_colors[s])
+    graphics::text(4.79, ys[s], rownames(radar_values)[s], adj = 0,
+                   cex = cfg$legend_cex, font = 2, col = "#18264D")
+  }
+  invisible(NULL)
+}
+```
+
+## 5. 导出与实际结果
+
+PNG 是 3600 × 2400 像素、300 dpi 白底图；SVG 是可缩放的矢量图。两种格式都由同一段 R 代码生成。
+
+```{r export}
+dir.create(params$output_dir, recursive = TRUE, showWarnings = FALSE)
+save_chart <- function(filename, format) {
+  if (format == "png") {
+    grDevices::png(filename, width = cfg$width_inches, height = cfg$height_inches,
+                   units = "in", res = cfg$dpi, pointsize = 12, bg = "white",
+                   type = if (capabilities("cairo")) "cairo" else getOption("bitmapType"))
+  } else {
+    if (!capabilities("cairo")) return(invisible(FALSE))
+    grDevices::svg(filename, width = cfg$width_inches, height = cfg$height_inches,
+                   pointsize = 12, bg = "white", family = "sans")
+  }
+  on.exit(grDevices::dev.off(), add = TRUE)
+  draw_radar_sunburst()
+  invisible(TRUE)
+}
+png_path <- file.path(params$output_dir, "radar_sunburst.png")
+svg_path <- file.path(params$output_dir, "radar_sunburst.svg")
+save_chart(png_path, "png")
+svg_saved <- save_chart(svg_path, "svg")
+if (!svg_saved) message("当前 R 没有 Cairo 支持，已导出 PNG，跳过 SVG。")
+```
+
+```{r final_figure, echo=FALSE, purl=FALSE}
+knitr::include_graphics(png_path)
+```
+
+**百分比口径：** 默认分母是各自的母类别，而不是整个 CSV。例如 D 有 8 个项目，D1 有 4 个项目，D1-1 有 2 个项目，所以标注为 D 100%、D1 50%、D1-1 25%。五个母类别上的 100% 不应相加。若要标注占全体项目的比例，改为 `cfg$percent_scope = "global"`，本例母类别便显示 20%。
+
+```{r displayed_summaries, echo=FALSE, purl=FALSE}
+knitr::kable(round(radar_values, 2), caption = "四组项目的雷达均值（0–100）")
+mother_counts <- aggregate(dat[[cfg$weight_column]],
+                           list(main_category = dat[[cfg$hierarchy[1]]]), sum)
+names(mother_counts)[2] <- "项目数"
+knitr::kable(mother_counts, caption = "五个母类别的项目数")
+```
+
+## 6. 修改与运行
+
+- 更换数据：保留必要列名，修改 CSV 后重新 Knit。名称可重复，ID 必须唯一。
+- 更换指标：同步修改 `cfg$metrics`、`cfg$metric_labels`，色块仍自动等宽。当前代码要求评分在 0–100 之间；预算、人数等不同量纲的数据不直接混进评分。
+- 更换分类：同步修改 `cfg$main_order`、`cfg$main_colors`；分类层级由 `cfg$hierarchy` 决定。缺少下级分类就填空，不填虚构的占位类别。
+- 修改圈宽、留白、字号、折线和颜色：集中修改 `cfg` 中的半径和样式参数。
+- `sample_weight` 默认每行是 1；若改用预算等作为权重，要同时修改本文对旭日图权重的解释。中心雷达均值仍按项目普通平均，不自动变为加权均值。
+
+在 RStudio 打开本文件后点击 **Knit**，或在文件所在目录运行：
+
+```r
+rmarkdown::render("radar_sunburst.Rmd")
+```
+
+Windows 命令行也可运行随附入口：
+
+```text
+Rscript render.R
+```
+
+只生成图片时，无须 rmarkdown、knitr 或 Pandoc：
+
+```text
+Rscript render.R --plot-only
+```
+
+`render.R` 的纯绘图模式用基础 R 提取并执行本文件中需要运行的 R 代码块。Rmd 保持为唯一的绘图代码来源。
