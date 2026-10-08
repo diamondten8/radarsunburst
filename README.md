@@ -1,50 +1,124 @@
-# 内部雷达图 + 外圈旭日图
+# radarsunburst
 
-数据为虚构演示数据。主要文件均放在本目录，输出图片位于 `output/`。
+Draw numeric radar profiles inside a sunburst of counted records. The centre
+shows each group's arithmetic metric means; the outside shows how the same
+records are classified. A separate ring identifies the metric axes. The two
+sets of categories are independent.
 
-|文件|用途|
-|:--|:--|
-|`demo_data.csv`|40 行、18 列，包含唯一 ID、中文项目名称、多列定性字段与定量字段|
-|`radar_sunburst.Rmd`|完整中文说明、参数与唯一的绘图代码来源|
-|`radar_sunburst.html`|已经实际 Knit 成功的离线报告，内嵌结果图，可展开代码|
-|`render.R`|命令行入口；可只用基础 R 生成图片|
-|`output/radar_sunburst.png`|3600 × 2400 像素，300 dpi|
-|`output/radar_sunburst.svg`|可缩放的矢量图|
+**Development version 0.1.0. This package has not yet been published on CRAN.**
 
-## 使用
+## Install a built source package
 
-在 RStudio 打开 `radar_sunburst.Rmd`，点击 Knit。更换数据后再次 Knit 即可。
+Run in R after building the package (replace the filename with its actual path):
 
-或在命令行运行：
-
-```text
-Rscript render.R
+```r
+install.packages("radarsunburst_0.1.0.tar.gz", repos = NULL, type = "source")
 ```
 
-只需要图片时运行：
+Installation of development tools and optional dependencies is a separate user
+action. The package never installs software, changes the working directory or
+writes a file simply because a chart is created.
 
-```text
-Rscript render.R --plot-only
+## Draw a chart
+
+```r
+library(radarsunburst)
+data(radar_sunburst_demo)
+
+metrics <- c("score_stability", "score_efficiency", "score_innovation",
+             "score_quality", "score_collaboration")
+hierarchy <- c("main_category", "sub_category", "leaf_category")
+
+p <- radar_sunburst(
+  radar_sunburst_demo, metrics, group = "series", hierarchy = hierarchy,
+  metric_labels = c("Stability", "Efficiency", "Innovation", "Quality",
+                    "Collaboration"),
+  percent = "root"
+)
+p
+p + ggplot2::theme_minimal() + ggplot2::labs(title = "Fictional projects")
 ```
 
-纯绘图模式没有额外 R 包依赖。HTML 需要 `rmarkdown`、`knitr` 和 Pandoc。程序不会自动安装任何软件。
+For your own table, change the column-name strings. Each row counts once in the
+sunburst, including repeated rows. There is no automatic deduplication or
+weighting. Numeric cells supply the radar values: a single row per group passes
+through unchanged; multiple rows are averaged. Missing/non-finite metrics are
+errors. Blank lower hierarchy cells end a branch; skipped levels are errors.
 
-## 如何读图
+`percent = "none"` shows names and counts. Other choices are `"parent"` (direct
+parent; the roots use the whole table), `"root"` (top-level category) and
+`"global"` (whole table). The percentages never change the sector angles.
 
-- 中心四条线：Series1–Series4 的五个评分均值，评分范围 0–100。
-- 中间五个等宽色块：雷达指标名称，轴线穿过各色块中点。
-- 外圈：母类别 → 子类别 → 叶类别，按项目数分配扇区角度。没有下级类别的分支就到此结束。
-- 默认百分比：占所属母类别的比例，因此母类别各自是 100%，子类别是 50%，本例叶类别是 25%。这几个母类别的 100% 不能相加。
-- 母类别 B、C、D、E、F 分别有 8 个项目，总计 40 个项目；每个 Series 各有 10 个项目。
+The default common radar limits include the raw input minimum and maximum,
+plus 5% of their span on either side. Override with `radar_limits = c(0, 100)`
+when a fixed comparison scale is appropriate. The centre is the lower bound,
+not necessarily zero. The package does not independently standardise axes or
+make different units scientifically comparable.
 
-预算、人数、周期等定量字段也在 CSV 中，但它们与评分量纲不同，没有直接放进同一个雷达刻度。它们可以作为后续示例扩展的数据。
+## Inspect, style and export
 
-## 验证记录
+```r
+s <- radar_sunburst_data(radar_sunburst_demo, metrics, "series", hierarchy)
+s$radar
+s$nodes[, c("label", "count", "parent_proportion", "root_proportion",
+             "global_proportion")]
 
-在本机 R 4.4.3 中实际运行了纯绘图模式与 HTML 编译。先后查看两版 PNG，对照 `example/radar-sunburst-v4.png` 调整了 F/E 分支顺序、标签与白色边界的间距、雷达节点及图例大小。最终检查了五个指标色块、四条闭合折线、分支层级和图例完整性。
+# Explicit, user-chosen output filename:
+ggplot2::ggsave("my-chart.png", p, width = 12, height = 8, dpi = 300)
+ggplot2::ggsave("my-chart.svg", p, width = 12, height = 8,
+                device = grDevices::svg)
+```
 
-采用与示例相近的结构与配色，并按请求增加指标名称色环。模拟数据、字体和新增色环会使其与参考图存在差异。
+Standard ggplot themes control titles, legends and backgrounds. Fill scales
+control root categories; colour scales control radar groups, including their
+translucent fill. Metric-ring colours and geometry text have separate function
+arguments. Keep the fixed coordinate ratio so circles remain circular. Font
+availability and export size affect label fit; inspect dense charts after export.
 
-CSV 使用 UTF-8 BOM，方便 Excel 打开中文；Rmd 读取时显式移除 BOM。数据校验会检查 ID、必要列、层级跳级、评分范围、权重与组别，不会将缺失评分默认为零。
+```r
+if (requireNamespace("plotly", quietly = TRUE)) {
+  w <- radar_sunburstly(p)
+  w
+  # Direct conversion also works:
+  plotly::ggplotly(p, tooltip = "text")
+  # Save explicitly; selfcontained = FALSE does not require Pandoc.
+  htmlwidgets::saveWidget(w, "my-chart.html", selfcontained = FALSE)
+}
+```
 
-Rmd 中的 `cfg` 集中控制颜色、圈宽、字号、指标顺序和分支顺序。把 `percent_scope` 改成 `global` 可以改为占全体项目的百分比。若改数据导致分支密集或标签很长，需要重新检查实际输出。
+The configured widget shows counts, denominators and means on hover, supports
+zoom, and toggles all traces of a radar group together. Category legends are
+explanatory; they do not filter records. Small hidden labels remain available
+on hover. Branch drill-down is not provided. Horizontal geometry text is the
+conversion default; nonzero rotations and some third-party theme elements can
+render differently in Plotly. The widget's categorical legend is unified by
+Plotly rather than laid out as two separate static guides.
+
+## Documentation and development
+
+See `vignette("radar-sunburst", package = "radarsunburst")` for a complete
+workflow, and `docs/QUICKSTART-zh.md` in the source checkout for Chinese guidance.
+Four functions form the public API; all geometry helpers are internal.
+
+Original prototype files are preserved on disk and excluded from the source
+tarball. `README-original.md` describes that prototype. New package code lives
+in `R/`; the old R Markdown document is no longer the package's code source.
+
+Developer commands and release evidence are recorded in `RELEASE-STATUS.md`.
+Tests cover numerical contracts, variable hierarchy depth, themes and widget
+structure. Browser checks are also needed for actual interaction. A passing
+local test suite does not by itself establish CRAN readiness.
+
+## Authorship and AI assistance
+
+Muyao Shen is the sole author, maintainer and designated copyright holder.
+OpenAI Codex assisted with design, implementation, demonstration-data generation,
+documentation and automated verification. AI assistance is acknowledged as a
+tool contribution, not listed as a human author. The maintainer remains responsible
+for reviewing the work, approving the final figures and responding to CRAN.
+Automated checks and agent visual inspection are recorded separately; they do
+not assert that the maintainer has personally reviewed every line or result.
+
+The demonstration records are fictional. No reference image, third-party source
+code, credentials, original generated report, or development cache is bundled.
+Package source and demonstration data are distributed under the MIT licence.

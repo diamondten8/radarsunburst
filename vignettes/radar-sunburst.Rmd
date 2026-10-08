@@ -1,0 +1,183 @@
+---
+title: "Counted hierarchies around numeric radar profiles"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Counted hierarchies around numeric radar profiles}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 10,
+                      fig.height = 7, dpi = 96)
+library(radarsunburst)
+```
+
+## The two questions answered by this chart
+
+The centre compares arithmetic means of numeric cells within groups. The outside
+counts records along a hierarchy. These are different summaries of the same
+table: neither the groups nor metric names need to match the root categories.
+The package does not infer a causal relationship between the centre and outside.
+
+```{r data}
+data(radar_sunburst_demo)
+d <- radar_sunburst_demo
+metrics <- c("score_stability", "score_efficiency", "score_innovation",
+             "score_quality", "score_collaboration")
+hierarchy <- c("main_category", "sub_category", "leaf_category")
+s <- radar_sunburst_data(d, metrics, "series", hierarchy)
+s$radar
+s$nodes[s$nodes$level == 1,
+        c("label", "count", "root_proportion", "global_proportion")]
+```
+
+Every row counts once. A weighting column, ID or project name is not required.
+If a source has duplicate rows, deduplicate it explicitly before calling the
+package when that is the intended scientific counting unit. A table with one
+row per group uses those numeric values unchanged. Blank child cells terminate
+a branch; their angular share stays unpainted in outer levels rather than being
+redistributed to the remaining children.
+
+```{r chart}
+p <- radar_sunburst(d, metrics, "series", hierarchy,
+  metric_labels = c("Stability", "Efficiency", "Innovation", "Quality",
+                    "Collaboration"),
+  root_order = c("F", "C", "D", "B", "E"),
+  root_colors = c(B = "#FF954F", C = "#F45668", D = "#DE578A",
+                   E = "#AE4D7C", F = "#725993"),
+  group_colors = c("#8E176C", "#1485C8", "#00A58E", "#C78800"))
+p
+```
+
+## Counts, percentages and ordering
+
+The root D has eight records, its child D1 four, and D1-1 two; the full table has
+40. Thus their root-based percentages are 100%, 50%, 25%; global percentages are
+20%, 10%, 5%; parent percentages are 20%, 50%, 50%. Top-level categories each
+showing 100% under the root convention should not be added together.
+
+```{r proportions}
+selected <- s$nodes$label %in% c("D", "D1", "D1-1")
+s$nodes[selected, c("label", "count", "parent_count", "root_count",
+                    "parent_proportion", "root_proportion", "global_proportion")]
+count_only <- radar_sunburst(d, metrics, "series", hierarchy, percent = "none")
+```
+
+Use `percent = "parent"`, `"root"`, `"global"` or `"none"`. This controls labels
+and hover denominators, not the underlying counts or sector widths. Defaults
+preserve first appearance. Supply complete `root_order` and `group_order`
+vectors to reorder them. For a local child order, obtain the parent's ID from
+the summary, then use a named list; full paths are stored separately as lists
+so slash characters or repeated names cannot merge nodes.
+
+```{r ordering}
+parent_id <- s$nodes$id[s$nodes$level == 1 & s$nodes$label == "F"]
+orders <- stats::setNames(list(c("F2", "F1")), parent_id)
+reordered <- radar_sunburst_data(d, metrics, "series", hierarchy,
+                                 branch_order = orders)
+reordered$nodes[reordered$nodes$parent_id %in% parent_id, c("label", "count")]
+```
+
+## Shared radar limits
+
+The default uses all raw input metric values before averaging. The observed
+range is 30 to 97, which expands to 26.65 to 100.35. The centre labels 26.65,
+not zero. Fixed limits make charts from different subsets easier to compare.
+Values outside explicit limits raise an error with the column and row location.
+Constant data get a nonzero range; negative and zero values are supported.
+
+```{r limits}
+s$radar_limits
+fixed <- radar_sunburst(d, metrics, "series", hierarchy, radar_limits = c(0, 100))
+attr(fixed, "radar_sunburst_summary")$radar_limits
+```
+
+All metrics use the same range. The package does not automatically make budget,
+team size or duration comparable to scores; prepare comparable metrics explicitly
+when that interpretation is needed.
+
+## Standard themes and scales
+
+```{r themes}
+p + ggplot2::theme_minimal() + ggplot2::labs(title = "Fictional projects")
+```
+
+`theme_classic()`, `theme_bw()` and `theme_dark()` also work. A third-party theme
+is optional and used only when installed.
+
+```{r third-party, fig.show='hide'}
+if (requireNamespace("ggthemes", quietly = TRUE)) {
+  p + ggthemes::theme_few()
+}
+```
+
+Theme components control titles, guides and backgrounds. Geometry labels have
+separate `label_size`, `metric_label_size`, `min_label_size`, `label_family`,
+`label_colour`, `metric_label_colour`, and `label_angle` arguments. Dark or unusual
+backgrounds can require explicit label colours. Check font availability on every
+target platform. Coloured metric sectors do not imply metric-category matching.
+
+```{r palettes, fig.show='hide'}
+p + ggplot2::scale_colour_manual(values = c(Series1 = "#444444", Series2 = "#0072B2",
+                                           Series3 = "#009E73", Series4 = "#D55E00"))
+p + ggplot2::theme(legend.position = "bottom")
+```
+
+Label fitting uses conservative bounds for a typical 180 mm plot panel.
+Very dense branches or long text are reduced and then hidden below the minimum
+size; the underlying sectors and hover information remain. Export size and font
+metrics affect readability, so inspect the final artifact. Custom ring radii and
+label sizes allow a different layout without changing the numerical summaries.
+
+## Static and interactive export
+
+The following examples write only to temporary directories and clean up.
+For your own persistent files, explicitly choose an output path.
+
+```{r static-export}
+local({
+  directory <- tempfile("radarsunburst-static-")
+  dir.create(directory)
+  on.exit(unlink(directory, recursive = TRUE), add = TRUE)
+  ggplot2::ggsave(file.path(directory, "chart.png"), p,
+                  width = 12, height = 8, dpi = 150)
+  if (capabilities("cairo")) {
+    ggplot2::ggsave(file.path(directory, "chart.svg"), p,
+                    width = 12, height = 8, device = grDevices::svg)
+  }
+})
+```
+
+```{r interactive, eval=TRUE}
+if (requireNamespace("plotly", quietly = TRUE)) {
+  w <- radar_sunburstly(p, width = 800, height = 550)
+  # Direct standard conversion is also supported.
+  direct <- plotly::ggplotly(p, tooltip = "text")
+  inherits(w, "plotly")
+}
+```
+
+Hover shows the full path, count, denominator and percentage, or the radar group,
+metric and mean. Zoom preserves the circle's aspect ratio. A radar legend click
+toggles its points, line and fill together; category legends remain explanatory.
+Decorative layers are excluded from hover by the configured converter. There is
+no branch drill-down or linked filtering. Geometry text rotation and some custom
+theme extensions may differ after conversion; horizontal text is the default.
+
+```{r html-export}
+if (requireNamespace("plotly", quietly = TRUE) &&
+    requireNamespace("htmlwidgets", quietly = TRUE)) {
+  local({
+    directory <- tempfile("radarsunburst-html-")
+    dir.create(directory)
+    on.exit(unlink(directory, recursive = TRUE), add = TRUE)
+    htmlwidgets::saveWidget(radar_sunburstly(p), file.path(directory, "chart.html"),
+                            selfcontained = FALSE)
+  })
+}
+```
+
+`selfcontained = FALSE` saves the JavaScript assets beside the HTML, without a
+network request when the saved result is opened. A self-contained export requires
+Pandoc in the author's development environment, not for ordinary plotting.
