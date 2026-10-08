@@ -112,8 +112,9 @@ if (requireNamespace("ggthemes", quietly = TRUE)) {
 }
 ```
 
-Metric-ring names are hidden by default; set `show_metric_labels = TRUE` to show
-them. Radar hover always retains the metric names supplied in `metric_labels`.
+The metric ring is omitted entirely by default (`metric_ring = NULL`). Add it
+with `metric_ring = c(1.06, 1.55)`; use `show_metric_labels = TRUE` to label it.
+Radar hover always retains the metric names supplied in `metric_labels`.
 Theme components control titles, guides and backgrounds. Geometry labels have
 separate `label_size`, `metric_label_size`, `min_label_size`, `label_family`,
 `label_colour`, `metric_label_colour`, and `label_angle` arguments. Dark or unusual

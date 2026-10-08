@@ -10,7 +10,7 @@
 #' @param metric_labels Optional character vector, one label per metric, used in
 #'   radar hover information and in the ring when `show_metric_labels` is true.
 #' @param show_metric_labels Logical scalar. Show names in the metric ring?
-#'   Defaults to false, leaving the ring unlabelled. Radar hover retains names.
+#'   Defaults to false. Requires a non-NULL `metric_ring`. Radar hover retains names.
 #' @param root_colors,group_colors Optional colour vectors, either unnamed in the
 #'   corresponding order or named for every root/group. Defaults use the
 #'   qualitative "Dark 3" palette. Change the fill/colour scales on the returned
@@ -18,7 +18,9 @@
 #' @param metric_colors Optional colours for metric-name sectors, independent of
 #'   the root fill scale. Defaults to light grey. Supply one or one per metric.
 #' @param radar_radius Positive radius of the radar. Defaults to 1.
-#' @param metric_ring Increasing length-two numeric vector outside the radar.
+#' @param metric_ring Optional increasing length-two numeric vector outside the
+#'   radar. Defaults to NULL, omitting the metric ring entirely. For example,
+#'   `c(1.06, 1.55)` adds a ring when `radar_radius` is 1.
 #' @param sunburst_radii Increasing vector with one more entry than hierarchy
 #'   levels, outside `metric_ring`. Defaults to equally thick rings of width 0.55.
 #' @param label_size,metric_label_size Text sizes in millimetres for hierarchy and
@@ -60,7 +62,7 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
                            root_order = NULL, branch_order = list(),
                            metric_labels = NULL, show_metric_labels = FALSE, root_colors = NULL,
                            group_colors = NULL, metric_colors = "#E5E7EB",
-                           radar_radius = 1, metric_ring = c(1.06, 1.55),
+                           radar_radius = 1, metric_ring = NULL,
                            sunburst_radii = NULL, label_size = 4,
                            metric_label_size = 3, min_label_size = 1.5,
                            label_colour = "white", metric_label_colour = "#283142",
@@ -91,16 +93,23 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   if (!is.character(label_family) || length(label_family) != 1L || is.na(label_family)) {
     stop("`label_family` must be one non-missing character string.", call. = FALSE)
   }
-  increasing_radii(metric_ring, 2L, "metric_ring")
-  if (metric_ring[1L] <= radar_radius) {
-    stop("`metric_ring` must lie outside `radar_radius`.", call. = FALSE)
+  ring_end <- radar_radius
+  if (!is.null(metric_ring)) {
+    increasing_radii(metric_ring, 2L, "metric_ring")
+    if (metric_ring[1L] <= radar_radius) {
+      stop("`metric_ring` must lie outside `radar_radius`.", call. = FALSE)
+    }
+    ring_end <- metric_ring[2L]
+  } else if (show_metric_labels) {
+    stop("`show_metric_labels = TRUE` requires a non-NULL `metric_ring`.", call. = FALSE)
   }
   if (is.null(sunburst_radii)) {
-    sunburst_radii <- metric_ring[2L] + 0.08 + seq.int(0, length(hierarchy)) * 0.55
+    sunburst_radii <- ring_end + 0.08 + seq.int(0, length(hierarchy)) * 0.55
   }
   increasing_radii(sunburst_radii, length(hierarchy) + 1L, "sunburst_radii")
-  if (sunburst_radii[1L] <= metric_ring[2L]) {
-    stop("`sunburst_radii` must lie outside `metric_ring`.", call. = FALSE)
+  if (sunburst_radii[1L] <= ring_end) {
+    stop("`sunburst_radii` must lie outside ",
+         if (is.null(metric_ring)) "`radar_radius`." else "`metric_ring`.", call. = FALSE)
   }
   if (is.null(metric_labels)) metric_labels <- metrics
   if (!is.character(metric_labels) || length(metric_labels) != length(metrics) ||
@@ -165,24 +174,26 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
       fontface = "bold", show.legend = FALSE)
   }
   angles <- 2 * pi * (seq_along(metrics) - 1L) / length(metrics)
-  metric_nodes <- data.frame(start = angles - pi / length(metrics),
-                             end = angles + pi / length(metrics), level = 1L,
-                             display_label = metric_labels)
-  for (i in seq_along(metrics)) {
-    xy <- annular_sector(metric_nodes$start[i], metric_nodes$end[i],
-                         metric_ring[1L], metric_ring[2L])
-    xy$tooltip <- ""
-    p <- p + ggplot2::geom_polygon(data = xy, fill = metric_colors[i],
-                                    colour = "white", linewidth = border_width,
-                                    show.legend = FALSE)
-  }
-  metric_text <- sector_text_data(metric_nodes, metric_ring, metric_label_size,
-                                   min_label_size, 0, max(sunburst_radii))
-  if (isTRUE(show_metric_labels) && nrow(metric_text)) {
-    p <- p + ggplot2::geom_text(data = metric_text,
-      mapping = ggplot2::aes(label = .data$label, size = .data$size),
-      colour = metric_label_colour, family = label_family, fontface = "bold",
-      show.legend = FALSE)
+  if (!is.null(metric_ring)) {
+    metric_nodes <- data.frame(start = angles - pi / length(metrics),
+                               end = angles + pi / length(metrics), level = 1L,
+                               display_label = metric_labels)
+    for (i in seq_along(metrics)) {
+      xy <- annular_sector(metric_nodes$start[i], metric_nodes$end[i],
+                           metric_ring[1L], metric_ring[2L])
+      xy$tooltip <- ""
+      p <- p + ggplot2::geom_polygon(data = xy, fill = metric_colors[i],
+                                      colour = "white", linewidth = border_width,
+                                      show.legend = FALSE)
+    }
+    metric_text <- sector_text_data(metric_nodes, metric_ring, metric_label_size,
+                                     min_label_size, 0, max(sunburst_radii))
+    if (isTRUE(show_metric_labels) && nrow(metric_text)) {
+      p <- p + ggplot2::geom_text(data = metric_text,
+        mapping = ggplot2::aes(label = .data$label, size = .data$size),
+        colour = metric_label_colour, family = label_family, fontface = "bold",
+        show.legend = FALSE)
+    }
   }
   closed <- c(seq_along(metrics), 1L)
   radius <- function(x) radar_radius * (x - lim[1L]) / diff(lim)

@@ -67,7 +67,8 @@ ggplot2::ggsave("我的图.svg", p, width = 12, height = 8, device = grDevices::
 `label_colour`、`metric_label_colour`、`label_family` 等参数控制。填色 scale
 控制外圈大类；colour scale 控制雷达组，含淡色填充。指标环颜色独立指定。
 保留固定坐标比例，避免圆形变椭圆。字体需要在实际输出机器上存在。
-灰色指标环默认不显示指标名称；悬停仍显示名称。需要显示时设置
+灰色指标环默认完全去掉（`metric_ring = NULL`）；雷达悬停仍显示指标名称。
+确实需要指标环时设置 `metric_ring = c(1.06, 1.55)`；如需环上的名称，另设置
 `show_metric_labels = TRUE`。
 
 细小扇区、长标签会缩小字号，低于最低字号就隐藏文字，但保留扇区和悬停

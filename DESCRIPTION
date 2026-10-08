@@ -4,8 +4,8 @@ Version: 0.1.0
 Authors@R: person("Muyao", "Shen", role = c("aut", "cre", "cph"),
     email = "shenmuyao.bio@gmail.com")
 Description: Draw composite charts combining group means of numeric metrics,
-    an independent ring for metric axes, and a sunburst of counted records in a
-    hierarchy. Counts and configurable proportions are calculated from input
+    an optional independent ring for metric axes, and a sunburst of counted
+    records in a hierarchy. Counts and configurable proportions are calculated from input
     rows, including branches that terminate at different depths. Standard
     'ggplot2' layers support themes and static export, with optional interactive
     conversion through 'plotly'.

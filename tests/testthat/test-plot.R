@@ -51,7 +51,7 @@ test_that("labels, lower bound and summaries preserve their contracts", {
     "score_quality", "score_collaboration"), "series",
     c("main_category", "sub_category", "leaf_category"),
     metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration"),
-    show_metric_labels = TRUE)
+    metric_ring = c(1.06, 1.55), show_metric_labels = TRUE)
   labels <- unlist(lapply(demo$layers, function(l) l$data$label))
   expect_true(all(c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration") %in% labels))
   unlabelled <- radar_sunburst(d, c("score_stability", "score_efficiency", "score_innovation",
@@ -73,10 +73,17 @@ test_that("plot validation is actionable", {
   expect_error(plot_small(root_colors = c("invalid", "red")), "invalid colour")
   expect_error(plot_small(metric_labels = "a"), "one non-empty")
   expect_error(plot_small(show_metric_labels = NA), "TRUE or FALSE")
+  expect_error(plot_small(show_metric_labels = TRUE), "non-NULL.*metric_ring")
   expect_error(plot_small(fill_alpha = 2), "between 0 and 1")
   expect_error(plot_small(ticks = c(-100, 100)), "within")
   expect_error(plot_small(label_angle = 100), "between -90 and 90")
   expect_error(plot_small(theme = list()), "ggplot2 theme")
+})
+
+test_that("the metric ring is omitted by default and can be added explicitly", {
+  colours <- function(p) unlist(lapply(ggplot2::ggplot_build(p)$data, function(l) l$fill))
+  expect_false("#E5E7EB" %in% colours(plot_small()))
+  expect_true("#E5E7EB" %in% colours(plot_small(metric_ring = c(1.06, 1.55))))
 })
 
 test_that("automatic ticks leave room for the real lower bound", {
