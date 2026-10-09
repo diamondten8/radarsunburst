@@ -4,9 +4,15 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Reuse the release-source artifact from this run (blank builds anew)
+        required: false
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   source:
@@ -15,21 +21,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
+        if: inputs.source_run_id == ''
         with:
           r-version: release
           use-public-rspm: true
       - uses: r-lib/actions/setup-pandoc@v2
+        if: inputs.source_run_id == ''
       - uses: r-lib/actions/setup-r-dependencies@v2
+        if: inputs.source_run_id == ''
         with:
           extra-packages: any::digest
           needs: check
       - name: Build once and record SHA-256
+        if: inputs.source_run_id == ''
         shell: Rscript {0}
         run: |
           status <- system2(file.path(R.home("bin"), "R"), c("CMD", "build", "."))
           if (status != 0L) stop("Source build failed")
           tarball <- "radarsunburst_0.1.0.tar.gz"
           writeLines(digest::digest(file = tarball, algo = "sha256"), "source-sha256.txt")
+      - name: Reuse the unchanged release candidate
+        if: inputs.source_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: release-source
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: release-source
@@ -93,6 +110,7 @@ jobs:
           if ($executable.Count -ne 1) { throw 'Expected one HTML Tidy executable' }
           $executable.DirectoryName | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Provision the PDF-manual toolchain
+        if: runner.os != 'macOS'
         shell: Rscript {0}
         run: |
           tinytex::install_tinytex()
@@ -100,12 +118,32 @@ jobs:
           bins <- list.dirs(file.path(tinytex::tinytex_root(), "bin"), recursive = FALSE)
           stopifnot(length(bins) > 0L)
           write(bins, file = Sys.getenv("GITHUB_PATH"), append = TRUE)
+      - name: Provision native macOS PDF-manual tools
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/TinyTeX-darwin.tar.xz"
+          root="$RUNNER_TEMP/tex-native"
+          curl --fail --location --retry 3 'https://github.com/rstudio/tinytex-releases/releases/download/v2026.10/TinyTeX-1-darwin-v2026.10.tar.xz' --output "$archive"
+          echo "e40c294efae81026d8cc8d12c09d2dd456d268efe7fe092410478bc1973fd40f  $archive" | shasum -a 256 --check
+          mkdir -p "$root"
+          tar -xJf "$archive" -C "$root"
+          bin=$(find "$root" -type d -path '*/bin/universal-darwin')
+          test -n "$bin"
+          "$bin/pdflatex" --version
+          export PATH="$bin:$PATH"
+          "$bin/tlmgr" option repository https://mirror.ctan.org/systems/texlive/tlnet
+          "$bin/tlmgr" install courier inconsolata makeindex
+          echo "$bin" >> "$GITHUB_PATH"
       - name: Build and check a source tarball, including the manual
         shell: Rscript {0}
         run: |
           tarball <- "source-artifact/radarsunburst_0.1.0.tar.gz"
           sha256 <- digest::digest(file = tarball, algo = "sha256")
           stopifnot(identical(sha256, readLines("source-artifact/source-sha256.txt")))
+          # setup-r defaults disable the clock check; restore the full CRAN checks.
+          Sys.setenv(`_R_CHECK_SYSTEM_CLOCK_` = "TRUE", NOT_CRAN = "false",
+                     `_R_CHECK_FORCE_SUGGESTS_` = "TRUE")
           result <- rcmdcheck::rcmdcheck(tarball, args = "--as-cran",
                                         error_on = "never", check_dir = "check")
           writeLines(c(R.version.string,
@@ -113,6 +151,7 @@ jobs:
                        paste("WARNING:", length(result$warnings)),
                        paste("NOTE:", length(result$notes)),
                        paste("SHA-256:", sha256),
+                       "System clock check: enabled; suggested packages: required.",
                        "Every NOTE needs release review.", result$notes),
                      "check-summary.txt")
           if (length(result$errors) || length(result$warnings)) stop("Package check failed")
