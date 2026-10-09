@@ -1,7 +1,7 @@
 # radarsunburst 0.1.0 release evidence
 
-Status: paused at the maintainer's request; release candidate, not submitted to
-or accepted by CRAN. Resume from `docs/NEXT-SESSION.md`.
+Status: technical release gates complete; ready for the maintainer's formal
+submission decision. Not submitted to or accepted by CRAN.
 Recorded on 2026-10-09 (Asia/Shanghai).
 
 ## Source and artifact
@@ -41,22 +41,37 @@ Logs and structured records:
   `E:/desktop/radarsunburst-checks/release/artifact-x7medapf` and
   `E:/desktop/radarsunburst-checks/devel/artifact-ko9ymv58`.
 
-The same tarball also completed cloud R 4.6.1 checks on Linux and Windows:
-0 ERROR, 0 WARNING, 1 NOTE each, again only "New submission". Their artifacts
-are preserved under `E:/desktop/radarsunburst-checks/github/37854188000`.
-The setup-r action sets `_R_CHECK_SYSTEM_CLOCK_=FALSE`; these cloud checks are
-supplementary platform evidence. Local complete checks above did not disable it.
+## Completed cloud gates on this exact tarball
 
-macOS code/tests/examples/vignettes and HTML manual passed, but the PDF manual
-failed because TinyTeX selected Linux ARM executables on the Apple ARM runner.
-The actual macOS result is 1 ERROR, 1 WARNING, 2 NOTEs, and is **not passed**.
-Its `Rdlatex.log` and complete job log are saved. The root cause and next
-diagnostics are in `docs/NEXT-SESSION.md`.
+| Environment | ERROR | WARNING | NOTE | Run |
+| --- | ---: | ---: | ---: | --- |
+| Ubuntu 24.04.5 x86_64, R 4.6.1 | 0 | 0 | 1 | 37899396257 |
+| Windows x86_64, R 4.6.1 | 0 | 0 | 1 | 37899396257 |
+| macOS Tahoe 26.6.2 Apple ARM, R 4.6.1 | 0 | 0 | 1 | 37899782528 |
+| Ubuntu 24.04.5 x86_64, R-devel 2026-10-06 r90643 | 0 | 0 | 1 | 37899396257 |
 
-The cloud Linux R-devel job was still provisioning dependencies when the
-maintainer requested a pause. The remaining run was cancelled; no cloud R-devel
-pass is claimed. Windows R-devel local checks remain completed on the exact
-tarball. Earlier failed or cancelled runs are preserved, not release successes.
+All ran full `R CMD check --as-cran`, including PDF/HTML manuals, examples,
+tests and vignette execution/rebuild. The system clock check was explicitly
+enabled and suggested packages required. Every NOTE is only "New submission".
+
+Run links: <https://github.com/diamondten8/radarsunburst/actions/runs/37899396257>
+and <https://github.com/diamondten8/radarsunburst/actions/runs/37899782528>.
+The first run's overall status is failed because its first macOS provisioning
+attempt needed a TeX manager update. Its other three check jobs passed. The
+second run checks only macOS and passed. Use the individual logs and hashes,
+not the overall badge, as release evidence.
+
+Workflow revisions `e047ced` and `05a189b` repair developer tooling only. On
+macOS, a SHA-256-verified official native Darwin TeX archive replaces the
+installer that incorrectly selected Linux ARM binaries; tlmgr is updated before
+installing manual fonts. No package source was changed or check disabled.
+Earlier failures/cancellations remain audit history, not claimed successes.
+
+Final logs and summaries are in `artifacts/release/{linux-release,
+cloud-windows-release,macos-release,linux-devel}-{00check.log,summary.txt}`.
+`artifacts/release/release-manifest.json` records their hashes and counts.
+Complete cloud artifacts are preserved outside the package under
+`E:/desktop/radarsunburst-checks/github/37899396257` and `37899782528`.
 
 ## Behaviour and visual gates
 
@@ -91,3 +106,4 @@ See `docs/MAINTENANCE.md` for release commands, mailbox duties and update handli
 `docs/QUICKSTART-zh.md` for use; `cran-comments.md` for the submission comment.
 Formal CRAN upload and its confirmation email are separate from technical checks.
 No acceptance or publication is claimed here.
+The exact form fields and mailbox steps are in `docs/SUBMISSION-zh.md`.

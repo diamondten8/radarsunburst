@@ -40,6 +40,14 @@ Windows, Linux, macOS and R-devel. Download and preserve the source and check
 artifacts. Review NOTEs even if the workflow is green; its failure threshold is
 ERRORs or WARNINGs. Browser interaction needs separate visual verification.
 
+For workflow/toolchain repairs that do not change package inputs, use the
+workflow's `source_run_id` dispatch input to reuse an existing release-source
+artifact. Do not reuse it after a package change. `macos_only` limits a toolchain
+repair check to macOS; it does not provide evidence for other platforms.
+The workflow explicitly restores the system clock check after setup-r and
+requires suggested dependencies. macOS uses a checksummed official Darwin TeX
+archive rather than the installer that selected a Linux ARM archive on this runner.
+
 After editing roxygen comments, run `roxygen2::roxygenise()` before checking.
 Use `testthat::test_local()` for behavioural tests. Do not add tests that rely on
 private files, a live service, credentials, or a particular current directory.

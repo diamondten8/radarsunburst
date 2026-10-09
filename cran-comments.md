@@ -18,13 +18,17 @@ Full R CMD check --as-cran on this unchanged tarball, including the PDF manual:
 - Windows x86_64, R-devel 2026-10-06 r90643: 0 ERROR, 0 WARNING, 1 NOTE.
 - Linux R 4.6.1, cloud: 0 ERROR, 0 WARNING, 1 NOTE.
 - Windows R 4.6.1, cloud: 0 ERROR, 0 WARNING, 1 NOTE.
-- macOS/cloud Linux R-devel: incomplete; do not submit this draft comment yet.
+- macOS Apple ARM, R 4.6.1: 0 ERROR, 0 WARNING, 1 NOTE.
+- Linux x86_64, R-devel 2026-10-06 r90643: 0 ERROR, 0 WARNING, 1 NOTE.
 
-The local NOTE is CRAN incoming feasibility: "New submission". There are no
-other local NOTEs. The completed cloud checks have the same NOTE. Cloud setup-r
-disabled only its system clock check; full local checks retained it. macOS still
-needs a native TeX toolchain repair and a complete recheck. Platform artifacts and logs are saved from
-https://github.com/diamondten8/radarsunburst/actions/runs/37854188000.
+Every NOTE is CRAN incoming feasibility: "New submission". This is the first
+submission of an unpublished package. No other NOTEs remain. The final cloud
+checks explicitly enable system clock checking and require suggested packages;
+PDF/HTML manuals, examples, tests and vignette rebuilds were checked.
+Platform artifacts and logs are saved from
+https://github.com/diamondten8/radarsunburst/actions/runs/37899396257
+and https://github.com/diamondten8/radarsunburst/actions/runs/37899782528.
+The latter run completes macOS checking after repairing its external TeX tools.
 
 ## Additional validation
 
