@@ -9,6 +9,11 @@ on:
         description: Reuse the release-source artifact from this run (blank builds anew)
         required: false
         type: string
+      macos_only:
+        description: Run only macOS when repairing its toolchain
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -60,11 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {os: ubuntu-latest, r: release}
-          - {os: windows-latest, r: release}
-          - {os: macos-latest, r: release}
-          - {os: ubuntu-latest, r: devel}
+        include: ${{ fromJSON(inputs.macos_only && '[{"os":"macos-latest","r":"release"}]' || '[{"os":"ubuntu-latest","r":"release"},{"os":"windows-latest","r":"release"},{"os":"macos-latest","r":"release"},{"os":"ubuntu-latest","r":"devel"}]') }}
     env:
       R_KEEP_PKG_SOURCE: yes
     steps:
@@ -133,6 +134,7 @@ jobs:
           "$bin/pdflatex" --version
           export PATH="$bin:$PATH"
           "$bin/tlmgr" option repository https://mirror.ctan.org/systems/texlive/tlnet
+          "$bin/tlmgr" update --self
           "$bin/tlmgr" install courier inconsolata makeindex
           echo "$bin" >> "$GITHUB_PATH"
       - name: Build and check a source tarball, including the manual
