@@ -6,7 +6,7 @@
 
 本书中的“已测试”指自动检查或 Codex 检查，不代表你本人已经看过。发布前最后一页由你逐项确认。旧版长手册另存为历史对照；当前接口以本书和 R 帮助为准。
 
-阅读路线：先看第 1 到 11 节理解输入和用法；再照第 14 到 22 节安装与验收；想学开发时看第 12、24、25 节。PDF 左侧书签可以直接跳转，章号加一就是本版页码。
+阅读路线：先看第 1 到 11 节理解输入和用法；再照第 14 到 22 节安装与验收；想学开发时看第 12、24、25 节。第 24 节另有完整开发练习，第 26、27 节保留 skill 体验和改进建议。PDF 左侧书签可以直接跳转。
 
 <!-- page -->
 # 1. 先认识输入：database 在这里就是一张表
@@ -136,6 +136,8 @@ A 组两行，质量均值 (70 + 90) / 2 = 80；效率 60；创新 70。B 组三
 
 这些比例都保存在 radar_sunburst_data() 的结果里。画图时不必把输入值换成百分比；手工先换成百分比再输入，会改变本来的数据含义。
 
+不同父类下同名的子类会分别计数。默认顺序按数据里首次出现排列；root_order 和 group_order 可指定完整的大类/雷达组顺序；更细的 branch_order 用法查函数帮助，避免为了调图把分类含义改掉。
+
 <!-- page -->
 # 7. 雷达的长短、角度和外圈空白怎么来
 
@@ -144,6 +146,8 @@ A 组两行，质量均值 (70 + 90) / 2 = 80；效率 60；创新 70。B 组三
 某个值离中心多远，取决于它在这个范围内的位置。通俗写法是“值减下界，再除以整个跨度”。所以中心标的是 26.5，不是强行标 0。若你希望中心是 0、外边是 100，就设 radar_limits = c(0, 100)。
 
 所有指标共用一个范围；改变样本子集会改变自动范围。比较两张不同子集的图时，最好明确指定相同范围，否则视觉差异可能来自刻度而非数据。
+
+负数和零可以使用。全部原始指标都一样时，跨度为零，包会在两侧各扩展 max(1, 该值绝对值的 5%)，避免除以零。例如全部为 0 时得到 -1 到 1。
 
 外圈把整圆按数量分份。X 占五行里的三行，所以占整圆 60%；Y 占 40%。子类再分父扇区。Y 有两行但 Y1 只有一行，因此 Y 的下一层一半画 Y1，另一半留白。
 
@@ -514,6 +518,8 @@ ggsave("manual-chart-small.png", p, width = 6, height = 5, dpi = 150)
 
 216 是断言数，不是 216 个完全独立场景，更不是正确性的数学证明。后续增加测试后这个数字也会变。测试的重点是“确实验证行为”，而非把内部每一行原样再写一遍。
 
+DESCRIPTION 声明 R 至少为 4.1，但本次没有单独在 R 4.1 上运行；不能把 ggplot2 的最低版本测试误读成所有旧 R 都已验证。实际运行的 R 版本与平台看发布检查记录。
+
 自动测试可以确认“生成的悬停文字包含 80”，却不能充分证明“你在浏览器里点那个位置就真的看到 80”。它也不能替你判断轴序是否容易理解、字号是否舒适，或科学解释是否成立。
 
 因此分三层：先看数字；再看静态图；最后操作交互图。R CMD check 是包的整体体检，还会检查文档和例子是否能运行，但不等于 CRAN 保证收录，也不等于维护者已经人工批准。
@@ -544,13 +550,112 @@ usethis::create_package("E:/practice/profilekit", open = FALSE)
 #' @examples
 #' mean_profile(c(2, 4, 6))
 mean_profile <- function(x) {
-  if (!is.numeric(x) || !length(x) || any(!is.finite(x)))
+  if (!is.numeric(x) || is.complex(x) || !is.null(dim(x)) ||
+      !length(x) || any(!is.finite(x)))
     stop("Supply a nonempty finite numeric vector.")
   mean(x)
 }
 ```
 
-在新项目运行 usethis::use_testthat()；在 tests/testthat/test-mean-profile.R 写 test_that("mean", { expect_equal(mean_profile(c(2,4,6)), 4) })。再运行 devtools::document() 和 testthat::test_local()，之后按第 15 节构建、安装、check。这个练习只展示最小流程；实际发布前还要检查矩阵、复数等边界。
+接下来的三页把帮助、测试、构建与安装接起来。练习请留在 profilekit，别把它的文件加进 radarsunburst。这里演示的是一个小而完整的包，不会真的替你上传。
+
+<!-- page -->
+# 24.1 开发练习：身份证、许可与测试
+
+先打开新项目中的 DESCRIPTION。把 Title 改成准确的英文标题，Version 明确改为 0.0.1，Authors@R 填自己的真实姓名、邮箱和角色，Description 用几句英文解释功能。字段续行需要缩进，不要把它当成随意排版的普通笔记。
+
+在这个新项目的 R 控制台运行：
+
+```r
+usethis::use_mit_license()
+usethis::use_testthat(edition = 3)
+```
+
+第一项写入许可文件和对应元数据；第二项准备测试框架。然后在 tests/testthat/test-mean-profile.R 保存：
+
+```r
+test_that("valid inputs have the expected mean", {
+  expect_equal(mean_profile(c(2, 4, 6)), 4)
+  expect_equal(mean_profile(c(-2, 0, 2)), 0)
+})
+test_that("incomplete or wrongly shaped inputs are rejected", {
+  expect_error(mean_profile(numeric()))
+  expect_error(mean_profile(c(1, NA_real_)))
+  expect_error(mean_profile(c(1, Inf)))
+  expect_error(mean_profile("2"))
+  expect_error(mean_profile(matrix(1:4, nrow = 2)))
+})
+```
+
+前两项把数学答案写清；后五项保护输入契约。expect_error() 表示“这里本来就应该报错”，因此它通过时不表示函数接受了错误数据。先写有用的边界，不必追求每行代码都对应一条测试。
+
+<!-- page -->
+# 24.2 开发练习：生成帮助、测试与构建
+
+在 profilekit 项目的 R 控制台运行：
+
+```r
+devtools::document()
+testthat::test_local()
+pkgload::load_all()
+mean_profile(c(2, 4, 6))
+```
+
+document() 读取 #' 注释，生成 man/mean_profile.Rd 和 NAMESPACE；test_local() 检查刚才保存的七项断言；load_all() 让你在开发时快速试用源文件。最后一行应得到 4。
+
+不要手改生成出来的帮助页来掩盖代码与文档冲突。正确做法是修改函数上方的说明，再 document()。@param 说明输入，@returns 说明输出，@examples 提供可运行例子，@export 决定用户能直接调用的函数。
+
+开发试用通过后，在 PowerShell 终端构建：
+
+```powershell
+Set-Location "E:/practice"
+& "D:/Rstudio&R/R-4.4.3/bin/x64/R.exe" CMD build "E:/practice/profilekit"
+& "D:/Rstudio&R/R-4.4.3/bin/x64/R.exe" CMD check --as-cran "E:/practice/profilekit_0.0.1.tar.gz"
+```
+
+先确认 build 成功再运行 check。check 的结尾要看 ERROR、WARNING、NOTE 各有多少；看到 DONE 不代表没有问题。“首次提交”的 NOTE 也应记录解释，不能假装不存在。
+
+当前 radarsunburst 就曾在新增组件时出现方法签名 WARNING：图能画、单元测试也通过，但完整检查发现它和新 ggplot2 的通用接口参数不一致。修正后必须重建、重查，而不是只更新报告里的数字。
+
+<!-- page -->
+# 24.3 开发练习：安装后再验一次
+
+重启 R；这一次别用 load_all()，直接安装刚构建的文件：
+
+```r
+lib <- "E:/R-libraries/profilekit-review"
+dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+.libPaths(c(lib, .libPaths()))
+install.packages("E:/practice/profilekit_0.0.1.tar.gz",
+                 repos = NULL, type = "source", lib = lib)
+library(profilekit)
+find.package("profilekit")
+mean_profile(c(2, 4, 6))
+?mean_profile
+```
+
+应从指定包库加载，均值应为 4，帮助中能看到输入、输出和例子。这个步骤发现的是“源文件开发时能跑，真正安装后却找不到函数/资源/依赖”的问题。
+
+以后改函数时，重复这一圈：改规则与代码、改测试和说明、生成帮助、运行测试、构建、安装、检查。改变用户可见行为要写 NEWS；已发布版本之后的变化还需要合适的版本号。
+
+依赖分两类：用户每次调用都需要的包放 Imports；只用于测试、教程或可选交互的包通常放 Suggests。可选功能在缺包时应给安装提示，不能在函数里偷偷 install.packages()。
+
+本练习的实际函数只调用基础 R，所以不需要把 devtools、roxygen2 当成运行依赖塞进 Imports。开发工具帮助你造包，和用户运行包所需的工具是两回事。
+
+<!-- page -->
+# 24.4 怎样把下一步清楚交给 Codex
+
+与其只说“帮我优化”，可以给出输入、输出、边界、希望保留的行为与验收方式。例如：
+
+“在现有包里增加加号式 geom 入口，原一键函数继续可用。两者必须共用统计和绘图核心，保留无灰环默认图。参数用列名字符串；明确说明是否继承 data 和 aes。更新帮助、README、教程、NEWS。比较两种入口的结果，测试最低 ggplot2 与交互，并重新构建检查；暂不上传 CRAN。”
+
+让每阶段留下可核对结果：接口签名和例子、已运行的测试、静态图、可打开的 HTML、安装后新会话结果、精确 tar.gz 与哈希。不是每一步都要停下来问你；真正影响表达含义或发布的决定才需要你审查。
+
+发现问题时，用“输入 + 操作 + 实际结果 + 预期结果”反馈。例如：“输入五行小表，点击 A 图例，点消失但线还在；希望整组一起显隐。”这比“交互怪怪的”更容易产生准确的回归测试。
+
+让 Codex 帮你写代码，不会转移维护者责任：指标单位是否合理、图形是否误导、作者与许可是否准确、维护邮箱能否持续收信，仍需要你作最终判断。
+
+不要因为 GitHub 已同步，就把它理解为正式发布。你可以反复本地安装和审查；真正上传 CRAN 应以你最终确认的那一份制品为准。
 
 <!-- page -->
 # 25. 改代码之后，文档和 GitHub 怎样跟上
@@ -599,6 +704,25 @@ GitHub Actions 会构建一份共享源码包，让 Windows、Linux、macOS 和 
 改 skill 后也需要试验：给它一个新包、一个现有包的小改动、一个失败检查、一个可选依赖缺失、一个有旧授权的会话，观察是否正确复用已有工作、是否误装依赖、是否误报通过。
 
 本次只补充体验与改进建议，没有擅自修改你安装的 skill，也没有声称以上行为试验全部做过。若你决定落实，应先备份、逐条修改、再跑这些场景。
+
+<!-- page -->
+# 27.1 你的 skill 里面各部分怎么改
+
+| 部分 | 当前职责 | 建议优先补的内容 |
+| --- | --- | --- |
+| SKILL.md | 什么时候用、不可破坏的规则、怎样交付 | 简明地要求先确认用户的主要用法和验收方式 |
+| workflow.md | 分阶段推进；修改会使哪些检查失效 | 区分已经有证据、需要补证据、明确未验证 |
+| coding-practices.md | API、命名空间、依赖与副作用 | 图形组合的 data/aes/scale/coord 契约 |
+| testing-documentation.md | 测试、帮助、例子、教程 | 可复制的人工验收步骤、预期与目的 |
+| check-errors.md | 定位检查失败 | 先辨别工具缺失、外部服务故障和包错误 |
+| cran-readiness.md | 精确制品、跨平台证据、提交准备 | 不重复询问已明确授权的操作；人工审批单列 |
+| scripts/ | 创建骨架、静态检查、构建检查、skill 验证 | 工具体检、检查已有 tarball、统一摘要 |
+
+曾遇到的具体摩擦：skill 验证脚本依赖 PyYAML，但环境没有安装时会先出现 traceback。应在入口给简明依赖提示，帮助命令也应尽量能运行；开发依赖另列清楚。
+
+另一个是环境变量不能只按名字判断：启用时钟检查与禁用时钟检查意义相反，都可能使用同一个变量。应检查生效值，报告“已加强”“已跳过”“未知”，避免错误归类。
+
+skill 修改后，用新包、现有包小改动、已有 tarball、缺可选依赖、缺 TeX、出现 NOTE、已有授权、图形浏览器验收这八类任务试跑，再判断是否改进。未试跑之前，只能称为建议，不能称为已验证更好的版本。
 
 <!-- page -->
 # 28. 你最终要确认的事情

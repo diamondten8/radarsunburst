@@ -9,8 +9,14 @@ and session invariants. The complete five-row teaching exercise has been execute
 A new geom_radsun demo was rendered as PNG/SVG and HTML. Actual browser hover over
 Series1 Stability shows mean 90; clicking Series1 hides its visible radar line,
 points and fill and a second click restores them. The default has no metric ring.
-Further browser zoom/category checks and final PDF layout are recorded with this
-update's delivery evidence. Maintainer acceptance remains pending.
+Actual browser zoom-in and reset retain the circular proportions. Hover over
+D / D1 / D1-1 shows count 2, root denominator 8 and 25 percent. Fresh Chinese
+labels and ggthemes::theme_few with a bottom legend were inspected in the
+browser. A hidden Rare branch 13 label still yields full hover, count 1,
+denominator 100 and 1 percent. The 35-page final Chinese guide was rasterised,
+all pages inspected, and its Chinese text, 35 bookmarks and page bounds checked.
+Its 24 R blocks parse and the toy-package exercise passes seven assertions.
+Maintainer acceptance remains pending.
 
 The following 2026-10-09 checks describe the earlier candidate. They are historical
 context, not claims that its old tarball hash covers the new component.
