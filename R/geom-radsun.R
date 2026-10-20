@@ -62,7 +62,7 @@ geom_radsun <- function(data = NULL, metrics, group, hierarchy,
 # legacy S3 additions through this hook, keeping the declared minimum supported.
 #' @importFrom ggplot2 ggplot_add
 #' @export
-ggplot_add.radsun_layer <- function(object, plot, object_name) {
+ggplot_add.radsun_layer <- function(object, plot, object_name = NULL, ...) {
   if (!is.null(attr(plot, "radar_sunburst_summary"))) {
     stop("Only one `geom_radsun()` component is supported per plot.", call. = FALSE)
   }
