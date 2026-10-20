@@ -1,5 +1,5 @@
 # Developer-only render cases; no package installation or user-state changes.
-for (file in list.files("R", pattern = "[.]R$", full.names = TRUE)) source(file)
+pkgload::load_all(".")
 source("tests/testthat/helper-data.R")
 directory <- "artifacts/preview"
 dir.create(directory, recursive = TRUE, showWarnings = FALSE)

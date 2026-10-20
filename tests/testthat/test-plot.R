@@ -44,7 +44,7 @@ test_that("labels, lower bound and summaries preserve their contracts", {
   d <- small_data(); d$root <- paste0("Very long ", strrep("label", 30), d$root)
   crowded <- plot_small(d)
   expect_equal(nrow(attr(crowded, "radar_sunburst_summary")$nodes), 8L)
-  expect_true(any(grepl("Very long", crowded$data$tooltip, fixed = TRUE)))
+  expect_true(any(grepl("Very long", crowded$layers[[1L]]$data$tooltip, fixed = TRUE)))
   # All five usual metric labels must remain present in the documented demo.
   d <- radar_sunburst_demo
   demo <- radar_sunburst(d, c("score_stability", "score_efficiency", "score_innovation",

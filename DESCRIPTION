@@ -7,7 +7,8 @@ Description: Draw composite charts combining group means of numeric metrics,
     an optional independent ring for metric axes, and a sunburst of counted
     records in a hierarchy. Counts and configurable proportions are calculated from input
     rows, including branches that terminate at different depths. Standard
-    'ggplot2' layers support themes and static export, with optional interactive
+    A composite 'ggplot2' component and a one-call plotting function share
+    standard layers for themes and static export, with optional interactive
     conversion through 'plotly'.
 License: MIT + file LICENSE
 URL: https://github.com/diamondten8/radarsunburst

@@ -20,25 +20,60 @@ Installation of development tools and optional dependencies is a separate user
 action. The package never installs software, changes the working directory or
 writes a file simply because a chart is created.
 
-## Draw a chart
+## Input table and mappings
+
+Use a wide data frame: one counted record per row, at least three numeric metric
+columns, one radar-group column and one or more ordered hierarchy columns.
+`metrics = c("a", "b", "c")` selects the radar axes in clockwise order from the
+top. `group = "team"` selects the radar profiles. `hierarchy = c("type", "subtype")`
+selects the inner-to-outer category levels. These are column-name strings, not
+`aes(x, y)` mappings. Metric values must be finite and nonmissing; group and root
+identifiers must be nonblank. Blank lower levels end a branch. Column names must
+be unique. Numeric metrics should have comparable units; no axis standardisation
+is performed.
+
+## Draw a chart with geom_radsun()
 
 ```r
 library(radarsunburst)
+library(ggplot2)
 data(radar_sunburst_demo)
 
 metrics <- c("score_stability", "score_efficiency", "score_innovation",
              "score_quality", "score_collaboration")
 hierarchy <- c("main_category", "sub_category", "leaf_category")
 
-p <- radar_sunburst(
-  radar_sunburst_demo, metrics, group = "series", hierarchy = hierarchy,
-  metric_labels = c("Stability", "Efficiency", "Innovation", "Quality",
-                    "Collaboration"),
-  percent = "root"
-)
+p <- ggplot(radar_sunburst_demo) +
+  geom_radsun(
+    metrics = metrics, group = "series", hierarchy = hierarchy,
+    metric_labels = c("Stability", "Efficiency", "Innovation", "Quality",
+                      "Collaboration"), percent = "root"
+  ) +
+  theme_radar_sunburst()
 p
 p + ggplot2::theme_minimal() + ggplot2::labs(title = "Fictional projects")
 ```
+
+For a one-call chart with the default theme, the original interface remains:
+
+```r
+quick <- radar_sunburst(radar_sunburst_demo, metrics, "series", hierarchy)
+# Or supply data directly on the component:
+explicit <- ggplot() +
+  geom_radsun(data = radar_sunburst_demo, metrics = metrics,
+              group = "series", hierarchy = hierarchy) +
+  theme_radar_sunburst()
+```
+
+Both interfaces use the same calculations and standard ggplot2 geometry.
+`geom_radsun()` adds multiple layers, fill/colour/size scales and fixed coordinates.
+It preserves parent data, existing layers, titles and themes, and adds no theme.
+Its generated layers do not inherit parent `aes()` mappings: there is no shared
+raw-data x/y axis between the radar and hierarchy. It accepts a data frame in
+`data`, or inherits the parent ggplot's data when `data = NULL`. One composite per
+plot is supported; faceting and transformed axes are outside this interface's
+scope. Add replacement colour scales after the component and retain fixed linear
+coordinates. Annotations use the generated Cartesian coordinates.
 
 For your own table, change the column-name strings. Each row counts once in the
 sunburst, including repeated rows. There is no automatic deduplication or
@@ -102,7 +137,12 @@ Plotly rather than laid out as two separate static guides.
 
 See `vignette("radar-sunburst", package = "radarsunburst")` for a complete
 workflow, and `docs/QUICKSTART-zh.md` in the source checkout for Chinese guidance.
-Four functions form the public API; all geometry helpers are internal.
+Five functions form the public API: `geom_radsun()`, `radar_sunburst()`,
+`radar_sunburst_data()`, `theme_radar_sunburst()` and `radar_sunburstly()`.
+All geometry helpers and the addition method are internal.
+See [the Chinese guide](docs/GUIDE-zh.md) for input mappings, local installation,
+all five functions and a step-by-step manual acceptance checklist, or read
+[the illustrated PDF](docs/radarsunburst-guide-zh.pdf).
 
 Original prototype files are preserved on disk and excluded from the source
 tarball. `README-original.md` describes that prototype. New package code lives

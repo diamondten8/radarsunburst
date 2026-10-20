@@ -6,14 +6,31 @@
 ```r
 install.packages("实际路径/radarsunburst_0.1.0.tar.gz", repos = NULL, type = "source")
 library(radarsunburst)
+library(ggplot2)
 data(radar_sunburst_demo)
 metrics <- c("score_stability", "score_efficiency", "score_innovation",
              "score_quality", "score_collaboration")
 hierarchy <- c("main_category", "sub_category", "leaf_category")
-p <- radar_sunburst(radar_sunburst_demo, metrics, "series", hierarchy,
-  metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration"))
+p <- ggplot(radar_sunburst_demo) +
+  geom_radsun(metrics = metrics, group = "series", hierarchy = hierarchy,
+    metric_labels = c("Stability", "Efficiency", "Innovation", "Quality", "Collaboration")) +
+  theme_radar_sunburst()
 p
 ```
+
+也可继续用 `radar_sunburst(radar_sunburst_demo, metrics, "series", hierarchy)`
+一键绘图。两种入口使用同一计算和绘图核心。
+
+`geom_radsun()` 继承 `ggplot(数据)` 的数据，也可单独指定 `data = 数据`。
+`metrics` 决定从正上方顺时针排列的雷达轴，`group` 决定雷达曲线，
+`hierarchy` 决定从内到外的分类层级。它自行计算 x/y，不继承父图的 `aes()`；
+不支持用 `aes(x = 质量, y = 效率)` 来指定雷达指标。外圈 fill 对应顶层分类，
+colour 对应雷达分组，size 内部用于标签字号。组件加入固定比例坐标和颜色刻度，
+不添加主题；保留已有数据、图层、标题和主题。一张图支持一个该组件；分面与
+变换坐标不属于当前支持范围。替换颜色 scale 请在组件后添加。
+
+完整易读教程、本地安装与逐项手动验收见 [GUIDE-zh.md](GUIDE-zh.md)，
+图文版见 [PDF](radarsunburst-guide-zh.pdf)。
 
 ## 换成自己的表格
 

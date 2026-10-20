@@ -9,7 +9,8 @@
 - 维护者：Muyao Shen。
 - 邮箱：shenmuyao.bio@gmail.com。
 - 文件：`E:/desktop/radarsunburst/artifacts/release/radarsunburst_0.1.0.tar.gz`。
-- SHA-256：`d9b8de41bdf66aff0d073444be51684c86e454934cb9aba76d3f235e19ed25ca`。
+- SHA-256：必须与当前 `RELEASE-STATUS.md` 和制品旁的 SHA256SUMS.txt 一致。
+  新增 geom_radsun 后，旧包的哈希和检查不能作为当前发布证据。
 - Optional comment：复制项目根目录 `cran-comments.md` 的英文内容；
   在平台检查和说明全部完成前不要上传。
 - 开源仓库：<https://github.com/diamondten8/radarsunburst>。
@@ -36,5 +37,6 @@ install.packages(
 library(radarsunburst)
 ```
 
-使用教程见 `docs/QUICKSTART-zh.md`。运行依赖 ggplot2 与 rlang 需预先安装；
+输入映射、五个函数与逐项手动验收见 `docs/GUIDE-zh.md` 和配套短版 PDF；
+快速使用见 `docs/QUICKSTART-zh.md`。运行依赖 ggplot2 与 rlang 需预先安装；
 交互转换另需 plotly 和 htmlwidgets。包本身不会自动安装这些依赖。

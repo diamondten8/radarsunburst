@@ -6,7 +6,9 @@ CRAN check reports and review requests. A successful check is not CRAN acceptanc
 ## Before the first submission
 
 1. Review the public functions, numerical rules, English help and vignette.
-   `docs/QUICKSTART-zh.md` is the Chinese introduction.
+   `docs/QUICKSTART-zh.md` is the Chinese introduction. `docs/GUIDE-zh.md`
+   and `docs/radarsunburst-guide-zh.pdf` explain mappings, both plotting
+   interfaces, all five public functions and manual acceptance steps.
 2. Confirm the final figures. The requested 0.1.0 default omits the
    entire grey metric ring; radar hover retains metric names. Explicit ring
    radii and `show_metric_labels = TRUE` restore a labelled ring when wanted.
@@ -53,6 +55,15 @@ Use `testthat::test_local()` for behavioural tests. Do not add tests that rely o
 private files, a live service, credentials, or a particular current directory.
 Developer previews use `tools/prototype.R` and `tools/visual-qa.R`; they are not
 distributed in the CRAN source package.
+
+After installation, `tools/installed-smoke.R` checks five exports and both
+interfaces in a fresh session. `tools/manual-acceptance.R` runs the five-row
+teaching exercise; the maintainer must still inspect static and browser output.
+The Chinese PDF is rendered with `python tools/build_guide.py` using reportlab
+and the documented fonts. Rebuild it after editing `docs/GUIDE-zh.md`, render
+and inspect all pages, then copy the final PDF from `output/pdf/` to its tracked
+`docs/radarsunburst-guide-zh.pdf` location. Both locations are excluded from the
+CRAN tarball. Keep the complete 2026-10-09 source book as a historical local copy.
 
 ## After acceptance
 

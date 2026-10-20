@@ -2,7 +2,7 @@
 library(radarsunburst)
 stopifnot(setequal(getNamespaceExports("radarsunburst"),
                   c("radar_sunburst_data", "radar_sunburst", "radar_sunburstly",
-                    "theme_radar_sunburst")))
+                    "theme_radar_sunburst", "geom_radsun")))
 requireNamespace("plotly", quietly = TRUE)
 local({
   data("radar_sunburst_demo", package = "radarsunburst", envir = environment())
@@ -16,10 +16,16 @@ local({
   stopifnot(nrow(s$nodes) == 21L, all(s$nodes$count[s$nodes$level == 1L] == 8L),
             identical(unname(s$radar[1L, ]), c(90, 60, 70, 40, 65)))
   p <- radar_sunburst(d, metrics, "series", hierarchy)
+  component <- ggplot2::ggplot(d) +
+    geom_radsun(metrics = metrics, group = "series", hierarchy = hierarchy) +
+    theme_radar_sunburst()
+  stopifnot(identical(attr(p, "radar_sunburst_summary"),
+                      attr(component, "radar_sunburst_summary")))
+  ggplot2::ggplot_build(component)
   ggplot2::ggplot_build(p)
   w <- radar_sunburstly(p)
   stopifnot(inherits(w, "plotly"), identical(before$wd, getwd()),
             identical(before$locale, Sys.getlocale()), identical(before$options, options()),
             identical(before$globals, ls(envir = .GlobalEnv, all.names = TRUE)))
-  cat("Clean installed-package session: OK; 4 exports; 21 nodes; means verified; session unchanged.\n")
+  cat("Clean installed-package session: OK; 5 exports; both interfaces; 21 nodes; means verified; session unchanged.\n")
 })

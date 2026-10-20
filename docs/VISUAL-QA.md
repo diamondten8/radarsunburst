@@ -1,3 +1,22 @@
+# geom_radsun update verification: 2026-10-20
+
+Current numerical/structural evidence: 216 passing assertions on both development
+and minimum ggplot2 3.5.0; both plotting interfaces produce identical numerical
+summaries and built layers. Direct ggplotly and configured conversion pass.
+Source installation and a clean outside-checkout session verify all five exports
+and session invariants. The complete five-row teaching exercise has been executed.
+
+A new geom_radsun demo was rendered as PNG/SVG and HTML. Actual browser hover over
+Series1 Stability shows mean 90; clicking Series1 hides its visible radar line,
+points and fill and a second click restores them. The default has no metric ring.
+Further browser zoom/category checks and final PDF layout are recorded with this
+update's delivery evidence. Maintainer acceptance remains pending.
+
+The following 2026-10-09 checks describe the earlier candidate. They are historical
+context, not claims that its old tarball hash covers the new component.
+
+---
+
 # Visual and interaction verification for 0.1.0
 
 Verified on 2026-10-09 with the local Windows R/ggplot2/Plotly toolchain and the

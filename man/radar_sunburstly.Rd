@@ -7,8 +7,8 @@
 radar_sunburstly(p, width = NULL, height = NULL, ...)
 }
 \arguments{
-\item{p}{A ggplot object produced by \code{\link[=radar_sunburst]{radar_sunburst()}}, optionally modified
-with a theme, labels or scales.}
+\item{p}{A ggplot object produced by \code{\link[=radar_sunburst]{radar_sunburst()}} or containing
+\code{\link[=geom_radsun]{geom_radsun()}}, optionally modified with a theme, labels or scales.}
 
 \item{width, height}{Optional widget width and height in pixels; finite positive
 numbers. When omitted, the containing page controls sizing.}

@@ -5,8 +5,8 @@
 #' are translated by Plotly, whose support for custom fonts, rotated geometry text
 #' and third-party extensions can differ from static rendering.
 #'
-#' @param p A ggplot object produced by [radar_sunburst()], optionally modified
-#'   with a theme, labels or scales.
+#' @param p A ggplot object produced by [radar_sunburst()] or containing
+#'   [geom_radsun()], optionally modified with a theme, labels or scales.
 #' @param width,height Optional widget width and height in pixels; finite positive
 #'   numbers. When omitted, the containing page controls sizing.
 #' @param ... Additional arguments passed to `plotly::ggplotly()`. The `tooltip`

@@ -1,5 +1,6 @@
-# Developer-only preview. Run from the package root before installing the package.
-for (file in list.files("R", pattern = "[.]R$", full.names = TRUE)) source(file)
+# Developer-only preview. Run from the package root with developer tools present.
+# load_all also registers the component's ggplot2 addition method.
+pkgload::load_all(".")
 dir.create("artifacts/preview", recursive = TRUE, showWarnings = FALSE)
 d <- utils::read.csv("demo_data.csv", fileEncoding = "UTF-8-BOM")
 metrics <- c("score_stability", "score_efficiency", "score_innovation",
@@ -13,6 +14,14 @@ options_demo <- list(data = d, metrics = metrics, group = "series", hierarchy = 
 s <- radar_sunburst_data(d, metrics, "series", hierarchy)
 stopifnot(nrow(s$nodes) == 21L, nrow(s$radar) == 4L)
 p <- do.call(radar_sunburst, options_demo)
+component <- ggplot2::ggplot() + do.call(geom_radsun, options_demo) +
+  theme_radar_sunburst()
+stopifnot(identical(attr(p, "radar_sunburst_summary"),
+                    attr(component, "radar_sunburst_summary")))
+ggplot2::ggsave("artifacts/preview/component.png", component,
+                 width = 12, height = 8, dpi = 200)
+htmlwidgets::saveWidget(radar_sunburstly(component, width = 1100, height = 750),
+                         "artifacts/preview/component.html", selfcontained = FALSE)
 ggplot2::ggsave("artifacts/preview/default.png", p, width = 12, height = 8, dpi = 200)
 ggplot2::ggsave("artifacts/preview/default.svg", p, width = 12, height = 8, device = grDevices::svg)
 for (name in c("minimal", "classic", "bw", "dark")) {

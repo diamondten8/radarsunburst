@@ -50,6 +50,36 @@ p <- radar_sunburst(d, metrics, "series", hierarchy,
 p
 ```
 
+## Add the composite as a ggplot2 component
+
+Use a wide input table. `metrics` names the numeric radar axes in clockwise
+order from the top; `group` names the radar profile identifier; `hierarchy`
+names the category levels from inner to outer. These are column-name strings,
+not x/y aesthetic mappings. The same core powers both plotting interfaces.
+
+```{r component}
+component <- ggplot2::ggplot(d) +
+  geom_radsun(metrics = metrics, group = "series", hierarchy = hierarchy) +
+  theme_radar_sunburst() + ggplot2::labs(title = "A composable interface")
+component
+stopifnot(identical(attr(component, "radar_sunburst_summary"), s))
+
+explicit <- ggplot2::ggplot() +
+  geom_radsun(data = d, metrics = metrics, group = "series", hierarchy = hierarchy) +
+  ggplot2::theme_minimal()
+```
+
+`geom_radsun()` adds standard layers, fill/colour/size scales and fixed Cartesian
+coordinates. It adds no theme and preserves existing data, layers, titles and
+themes. Its generated layers do not inherit parent `aes()` mappings because
+the chart calculates its own x/y positions. Explicit component data override
+parent data. One composite per plot is supported; faceting and transformed axes
+are outside this interface's scope. Replacement colour scales belong after the
+component; retain fixed linear coordinates. Additional annotations use the
+generated Cartesian coordinates rather than raw metric units. Both
+`plotly::ggplotly(component, tooltip = "text")` and `radar_sunburstly(component)`
+support conversion, subject to the same limitations described below.
+
 ## Counts, percentages and ordering
 
 The root D has eight records, its child D1 four, and D1-1 two; the full table has

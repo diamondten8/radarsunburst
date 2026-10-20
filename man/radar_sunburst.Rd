@@ -130,6 +130,7 @@ open a device or write files. Use \code{ggplot2::ggsave()} for static export,
 The radar summarises numeric cells by group; the sunburst independently counts
 rows along a hierarchy. Metric axes and root categories need not correspond.
 All geometry is built from standard 'ggplot2' layers in Cartesian coordinates.
+This is the one-call interface to \code{\link[=geom_radsun]{geom_radsun()}}, with a default theme.
 }
 \examples{
 d <- data.frame(group = c("A", "A", "B"), category = c("X", "Y", "X"),

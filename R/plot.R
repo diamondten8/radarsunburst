@@ -3,6 +3,7 @@
 #' The radar summarises numeric cells by group; the sunburst independently counts
 #' rows along a hierarchy. Metric axes and root categories need not correspond.
 #' All geometry is built from standard 'ggplot2' layers in Cartesian coordinates.
+#' This is the one-call interface to [geom_radsun()], with a default theme.
 #'
 #' @inheritParams radar_sunburst_data
 #' @param percent Label denominator: `"root"` (default), `"parent"`, `"global"`,
@@ -70,6 +71,27 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
                            line_width = 0.65, point_size = 2, fill_alpha = 0.04,
                            border_width = 0.55, ticks = NULL,
                            theme = theme_radar_sunburst()) {
+  if (!inherits(theme, "theme")) stop("`theme` must be a ggplot2 theme.", call. = FALSE)
+  args <- mget(setdiff(names(formals(radar_sunburst)), "theme"),
+               envir = environment(), inherits = FALSE)
+  ggplot2::ggplot() + do.call(geom_radsun, args) + theme
+}
+
+# Shared geometry compiler. Both public plotting interfaces use this function.
+radsun_components <- function(data, metrics, group, hierarchy,
+                              percent = c("root", "parent", "global", "none"),
+                              radar_limits = NULL, group_order = NULL,
+                              root_order = NULL, branch_order = list(),
+                              metric_labels = NULL, show_metric_labels = FALSE,
+                              root_colors = NULL, group_colors = NULL,
+                              metric_colors = "#E5E7EB", radar_radius = 1,
+                              metric_ring = NULL, sunburst_radii = NULL,
+                              label_size = 4, metric_label_size = 3,
+                              min_label_size = 1.5, label_colour = "white",
+                              metric_label_colour = "#283142", label_angle = 0,
+                              label_family = "", line_width = 0.65,
+                              point_size = 2, fill_alpha = 0.04,
+                              border_width = 0.55, ticks = NULL) {
   percent <- match.arg(percent)
   if (!is.logical(show_metric_labels) || length(show_metric_labels) != 1L ||
       is.na(show_metric_labels)) {
@@ -125,7 +147,6 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   validate_colors(metric_colors, "metric_colors")
   validate_colors(label_colour, "label_colour", scalar = TRUE)
   validate_colors(metric_label_colour, "metric_label_colour", scalar = TRUE)
-  if (!inherits(theme, "theme")) stop("`theme` must be a ggplot2 theme.", call. = FALSE)
   lim <- s$radar_limits
   if (is.null(ticks)) {
     ticks <- pretty(lim, n = 5L)
@@ -159,19 +180,19 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
     xy
   }))
   polygons$root <- factor(polygons$root, levels = s$root_order)
-  p <- ggplot2::ggplot(polygons,
-                       ggplot2::aes(x = .data$x, y = .data$y, text = .data$tooltip)) +
-    ggplot2::geom_polygon(ggplot2::aes(group = .data$id, fill = .data$root),
-                          colour = "white", linewidth = border_width) +
+  p <- list(
+    radsun_geom(ggplot2::geom_polygon, polygons,
+      ggplot2::aes(group = .data$id, fill = .data$root),
+      colour = "white", linewidth = border_width),
     ggplot2::scale_fill_manual(values = root_colors, breaks = s$root_order,
-                               name = "Categories", drop = FALSE)
+                               name = "Categories", drop = FALSE))
   labels <- sector_text_data(nodes, sunburst_radii, label_size, min_label_size,
                               label_angle, max(sunburst_radii))
   if (nrow(labels)) {
-    p <- p + ggplot2::geom_text(data = labels,
-      mapping = ggplot2::aes(label = .data$label, size = .data$size),
+    p <- c(p, list(radsun_geom(ggplot2::geom_text, labels,
+      ggplot2::aes(label = .data$label, size = .data$size),
       colour = label_colour, angle = label_angle, family = label_family,
-      fontface = "bold", show.legend = FALSE)
+      fontface = "bold", show.legend = FALSE)))
   }
   angles <- 2 * pi * (seq_along(metrics) - 1L) / length(metrics)
   if (!is.null(metric_ring)) {
@@ -182,17 +203,17 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
       xy <- annular_sector(metric_nodes$start[i], metric_nodes$end[i],
                            metric_ring[1L], metric_ring[2L])
       xy$tooltip <- ""
-      p <- p + ggplot2::geom_polygon(data = xy, fill = metric_colors[i],
+      p <- c(p, list(radsun_geom(ggplot2::geom_polygon, xy, fill = metric_colors[i],
                                       colour = "white", linewidth = border_width,
-                                      show.legend = FALSE)
+                                      show.legend = FALSE)))
     }
     metric_text <- sector_text_data(metric_nodes, metric_ring, metric_label_size,
                                      min_label_size, 0, max(sunburst_radii))
     if (isTRUE(show_metric_labels) && nrow(metric_text)) {
-      p <- p + ggplot2::geom_text(data = metric_text,
-        mapping = ggplot2::aes(label = .data$label, size = .data$size),
+      p <- c(p, list(radsun_geom(ggplot2::geom_text, metric_text,
+        ggplot2::aes(label = .data$label, size = .data$size),
         colour = metric_label_colour, family = label_family, fontface = "bold",
-        show.legend = FALSE)
+        show.legend = FALSE)))
     }
   }
   closed <- c(seq_along(metrics), 1L)
@@ -203,11 +224,11 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   }))
   axes <- data.frame(x = 0, y = 0, xend = radar_radius * sin(angles),
                       yend = radar_radius * cos(angles), tooltip = "")
-  p <- p + ggplot2::geom_path(data = grid, ggplot2::aes(group = .data$id),
-                              colour = "#B6B7BC", linewidth = 0.25, show.legend = FALSE) +
-    ggplot2::geom_segment(data = axes,
-      mapping = ggplot2::aes(xend = .data$xend, yend = .data$yend),
-      colour = "#CDCDD1", linewidth = 0.25, show.legend = FALSE)
+  p <- c(p, list(radsun_geom(ggplot2::geom_path, grid, ggplot2::aes(group = .data$id),
+                              colour = "#B6B7BC", linewidth = 0.25, show.legend = FALSE),
+    radsun_geom(ggplot2::geom_segment, axes,
+      ggplot2::aes(xend = .data$xend, yend = .data$yend),
+      colour = "#CDCDD1", linewidth = 0.25, show.legend = FALSE)))
   radar_points <- do.call(rbind, lapply(seq_along(s$group_order), function(i) {
     r <- radius(s$radar[i, ])
     data.frame(x = r * sin(angles), y = r * cos(angles),
@@ -224,30 +245,40 @@ radar_sunburst <- function(data, metrics, group, hierarchy,
   }))
   # Use the line colour scale for fills as well, preserving a single group legend.
   if (fill_alpha > 0) {
-    p <- p + ggplot2::geom_polygon(data = radar_paths,
-      mapping = ggplot2::aes(group = .data$series, colour = .data$series,
+    p <- c(p, list(radsun_geom(ggplot2::geom_polygon, radar_paths,
+      ggplot2::aes(group = .data$series, colour = .data$series,
                               fill = ggplot2::after_scale(.data$colour)),
-      linewidth = 0, alpha = fill_alpha, show.legend = FALSE)
+      linewidth = 0, alpha = fill_alpha, show.legend = FALSE)))
   }
-  p <- p + ggplot2::geom_path(data = radar_paths,
-      mapping = ggplot2::aes(group = .data$series, colour = .data$series),
-      linewidth = line_width) +
-    ggplot2::geom_point(data = radar_points, ggplot2::aes(colour = .data$series),
-                         size = point_size) +
+  p <- c(p, list(radsun_geom(ggplot2::geom_path, radar_paths,
+      ggplot2::aes(group = .data$series, colour = .data$series),
+      linewidth = line_width),
+    radsun_geom(ggplot2::geom_point, radar_points, ggplot2::aes(colour = .data$series),
+                         size = point_size),
     ggplot2::scale_colour_manual(values = group_colors, breaks = s$group_order,
-                                 name = "Radar groups", drop = FALSE)
+                                 name = "Radar groups", drop = FALSE)))
   tick_text <- data.frame(x = radar_radius * 0.035, y = radius(ticks),
                            label = format_number(ticks), tooltip = "")
   outer <- utils::tail(sunburst_radii, 1L) * 1.07
-  p <- p + ggplot2::geom_text(data = tick_text, ggplot2::aes(label = .data$label),
+  p <- c(p, list(radsun_geom(ggplot2::geom_text, tick_text, ggplot2::aes(label = .data$label),
                                colour = metric_label_colour, family = label_family,
-                               size = 2.5, hjust = 0, show.legend = FALSE) +
-    ggplot2::scale_size_identity() +
+                               size = 2.5, hjust = 0, show.legend = FALSE),
+    ggplot2::scale_size_identity(),
     ggplot2::coord_fixed(xlim = c(-outer, outer), ylim = c(-outer, outer),
-                         expand = FALSE, clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL) + theme
-  attr(p, "radar_sunburst_summary") <- s
-  p
+                         expand = FALSE, clip = "off"),
+    ggplot2::labs(x = NULL, y = NULL)))
+  list(components = p, summary = s)
+}
+
+# Give every generated layer its own data and mappings. Parent plot aesthetics
+# must not refer to columns that disappear during aggregation. Add hover text
+# after construction because it is consumed by Plotly, not by static geoms.
+radsun_geom <- function(geom, data, mapping = NULL, ...) {
+  common <- ggplot2::aes(x = .data$x, y = .data$y)
+  for (name in names(mapping)) common[[name]] <- mapping[[name]]
+  layer <- geom(data = data, mapping = common, inherit.aes = FALSE, ...)
+  layer$mapping$text <- ggplot2::aes(text = .data$tooltip)$text
+  layer
 }
 
 positive_scalar <- function(x, name, zero = FALSE) {
